@@ -18,6 +18,10 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ColorField,
+  ColorSwatch,
+  Link,
+  parseColor,
   Slider,
   Tab,
   Tabs,
@@ -613,14 +617,14 @@ export function InterviewRecorder() {
             Enter prep mode
           </Button>
           {recordingUrl ? (
-            <a
+            <Link
               href={recordingUrl}
               download={recordingFilename()}
               className="inline-flex items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-5 py-3 font-semibold text-[var(--foreground)] hover:bg-[var(--panel-muted)]"
             >
               <Download aria-hidden="true" className="h-4 w-4" />
               Download last take
-            </a>
+            </Link>
           ) : null}
         </div>
       </section>
@@ -670,7 +674,7 @@ export function InterviewRecorder() {
       <div className="grid h-full grid-cols-[156px_minmax(0,1fr)] gap-4 px-4 pb-24 pt-24 max-md:grid-cols-1">
         <nav className="sticky top-24 h-fit rounded-medium border border-white/15 bg-black/25 p-2 text-white backdrop-blur max-md:hidden">
           {prepSections.map((section) => (
-            <a
+            <Link
               key={section.id}
               href={`#${section.id}`}
               className={`block rounded px-3 py-2 text-sm font-semibold ${
@@ -678,7 +682,7 @@ export function InterviewRecorder() {
               }`}
             >
               {section.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -719,28 +723,39 @@ export function InterviewRecorder() {
                     <h3 className="text-sm font-semibold">Screen lighting</h3>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {backgroundPresets.map((preset) => (
-                        <button
+                        <Button
                           key={preset.label}
                           type="button"
                           onClick={() => setBackgroundColor(preset.color)}
-                          className={`flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold ${
+                          variant={backgroundColor === preset.color ? "primary" : "outline"}
+                          className={`inline-flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold ${
                             backgroundColor === preset.color ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-white"
                           }`}
                         >
-                          <span className="h-4 w-4 rounded-full border border-black/10" style={{ backgroundColor: preset.color }} />
+                          <ColorSwatch
+                            color={preset.color}
+                            className="h-4 w-4 rounded-full border border-black/10"
+                          />
                           {preset.label}
-                        </button>
+                        </Button>
                       ))}
                     </div>
-                    <label className="mt-3 block text-sm font-medium text-[var(--ink-muted)]">
-                      Custom color
-                      <input
-                        type="color"
-                        value={backgroundColor}
-                        onChange={(event) => setBackgroundColor(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-medium border border-[var(--line)] bg-white p-1"
-                      />
-                    </label>
+                    <div className="mt-3">
+                      <p className="mb-2 text-sm font-medium text-[var(--ink-muted)]">Custom color</p>
+                      <ColorField
+                        value={parseColor(backgroundColor)}
+                        onChange={(color) => {
+                          if (color) {
+                            setBackgroundColor(color.toString("hex"));
+                          }
+                        }}
+                      >
+                        <ColorField.Group className="flex h-11 items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-3">
+                          <ColorSwatch color={backgroundColor} className="h-6 w-6 rounded-full border border-black/10" />
+                          <ColorField.Input className="min-w-0 flex-1 bg-transparent text-sm font-semibold uppercase text-[var(--foreground)] outline-none" />
+                        </ColorField.Group>
+                      </ColorField>
+                    </div>
                     <label className="mt-3 block text-sm font-medium text-[var(--ink-muted)]">
                       Brightness
                       <Slider
@@ -1009,14 +1024,14 @@ export function InterviewRecorder() {
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         {recordingUrl ? (
-          <a
+          <Link
             href={recordingUrl}
             download={recordingFilename()}
             className="inline-flex items-center gap-2 rounded-medium bg-[var(--accent)] px-5 py-3 font-semibold text-white hover:bg-[var(--accent-strong)]"
           >
             <Download aria-hidden="true" className="h-4 w-4" />
             Download WebM
-          </a>
+          </Link>
         ) : null}
         <Button
           type="button"
@@ -1097,10 +1112,11 @@ function SettingChoice({
       <p className="mb-2 text-sm font-semibold text-[var(--foreground)]">{label}</p>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
-          <button
+          <Button
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
+            variant={value === option.value ? "primary" : "outline"}
             className={`inline-flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold ${
               value === option.value
                 ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
@@ -1109,7 +1125,7 @@ function SettingChoice({
           >
             {value === option.value ? <Check aria-hidden="true" className="h-4 w-4" /> : null}
             {option.label}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
