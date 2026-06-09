@@ -36,6 +36,7 @@ type TimerMode = "elapsed" | "countdown";
 type TimerProgressStyle = "circle" | "bar";
 type QualityPreset = "standard" | "high";
 type CameraPosition = "bottom-center" | "bottom-left" | "bottom-right";
+type CameraAccess = "idle" | "requesting" | "granted" | "denied" | "unsupported";
 
 type Tone = {
   id: string;
@@ -161,6 +162,7 @@ export function InterviewRecorder() {
   const [countdownValue, setCountdownValue] = useState(3);
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cameraAccess, setCameraAccess] = useState<CameraAccess>("idle");
   const introModal = useOverlayState({ defaultOpen: true });
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -232,14 +234,18 @@ export function InterviewRecorder() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+
+    setCameraAccess((current) => (current === "unsupported" ? "unsupported" : "idle"));
   }, [stopDrawing]);
 
   const startCamera = useCallback(
     async (quality = qualityPreset) => {
       setError(null);
+      setCameraAccess("requesting");
 
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
+          setCameraAccess("unsupported");
           throw new Error("This browser does not support camera recording.");
         }
 
@@ -252,7 +258,10 @@ export function InterviewRecorder() {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
+
+        setCameraAccess("granted");
       } catch (cameraError) {
+        setCameraAccess(cameraError instanceof Error && cameraError.message.includes("support") ? "unsupported" : "denied");
         setError(cameraError instanceof Error ? cameraError.message : "Camera permission failed.");
       }
     },
@@ -414,12 +423,6 @@ export function InterviewRecorder() {
 
     return stopDrawing;
   }, [appMode, drawToCanvas, stopDrawing]);
-
-  useEffect(() => {
-    if (appMode === "prep" && !introModal.isOpen && !mediaStreamRef.current) {
-      void startCamera();
-    }
-  }, [appMode, introModal.isOpen, startCamera]);
 
   useEffect(() => {
     if (appMode !== "record") {
@@ -590,6 +593,12 @@ export function InterviewRecorder() {
                     Rehearse, record, and download a clean response.
                   </Modal.Heading>
                 </div>
+                <Modal.CloseTrigger
+                  className="quiet-action absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full"
+                  aria-label="Close introduction"
+                >
+                  <X aria-hidden="true" className="h-4 w-4" />
+                </Modal.CloseTrigger>
               </Modal.Header>
               <Modal.Body className="space-y-4 px-6 py-5 text-sm leading-6 text-[var(--ink-muted)]">
                 <p>
@@ -617,7 +626,7 @@ export function InterviewRecorder() {
                   onClick={introModal.close}
                   className="primary-action rounded-medium px-5 py-3 font-semibold"
                 >
-                  Start setup
+                  Get started
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>
@@ -653,7 +662,7 @@ export function InterviewRecorder() {
           <Tabs
             selectedKey={activeSection}
             onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
-            className="studio-tabs rounded-medium p-2 text-white"
+            className="studio-tabs mx-auto w-fit rounded-medium p-2 text-white"
           >
             <Tabs.List aria-label="Prep sections">
               {prepSections.map((section) => (
@@ -671,8 +680,36 @@ export function InterviewRecorder() {
                 <h2 className="text-xl font-semibold">Video</h2>
               </CardHeader>
               <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
-                <div className="overflow-hidden rounded-large bg-black shadow-inner">
+                <div className="relative overflow-hidden rounded-large bg-black shadow-inner">
                   <canvas className="aspect-video w-full object-cover" ref={canvasRef} />
+                  {cameraAccess !== "granted" ? (
+                    <div className="absolute inset-0 grid place-items-center bg-[#101827] px-6 text-center text-white">
+                      <div className="max-w-sm">
+                        <p className="text-lg font-semibold">
+                          {cameraAccess === "denied"
+                            ? "Camera access was blocked"
+                            : cameraAccess === "unsupported"
+                              ? "Camera is not supported"
+                              : "Camera preview is off"}
+                        </p>
+                        <p className="mt-2 text-sm text-white/70">
+                          {cameraAccess === "denied"
+                            ? "Allow camera and microphone access in your browser, then try again."
+                            : "Enable camera access to preview framing and filters before recording."}
+                        </p>
+                        {cameraAccess !== "unsupported" ? (
+                          <Button
+                            type="button"
+                            onClick={() => void startCamera()}
+                            isDisabled={cameraAccess === "requesting"}
+                            className="primary-action mt-4 rounded-medium px-4 py-2 font-semibold"
+                          >
+                            {cameraAccess === "requesting" ? "Requesting access..." : "Enable camera access"}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="space-y-5">
                   <div>
