@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Check,
   Download,
+  Info,
   RotateCcw,
   Square,
   Video,
@@ -275,19 +276,6 @@ export function InterviewRecorder() {
       // Browser fullscreen can be blocked; record mode still fills the viewport.
     }
   }, []);
-
-  const exitFullscreen = useCallback(async () => {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    }
-  }, []);
-
-  const exitPrep = useCallback(async () => {
-    await exitFullscreen();
-    stopCamera();
-    setAppMode("prep");
-    setActiveSection("video");
-  }, [exitFullscreen, stopCamera]);
 
   const handleScriptChange = useCallback((value: string) => {
     const nextParagraphCount = splitScriptIntoParagraphs(value).length;
@@ -634,22 +622,14 @@ export function InterviewRecorder() {
         </Modal.Backdrop>
       </Modal>
 
-      <div className="studio-topbar absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 text-white">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">Prep mode</p>
-          <p className="text-sm font-semibold text-white/95">Set up the take before recording</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={exitPrep}
-            className="quiet-action grid h-10 w-10 place-items-center rounded-full"
-            aria-label="Exit prep mode"
-          >
-            <X aria-hidden="true" className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+      <Button
+        type="button"
+        onClick={introModal.open}
+        className="quiet-action fixed left-5 top-5 z-30 inline-flex h-10 w-10 items-center justify-center rounded-full"
+        aria-label="Open app information"
+      >
+        <Info aria-hidden="true" className="h-5 w-5" />
+      </Button>
 
       {error ? (
         <div className="absolute left-1/2 top-20 z-30 w-[min(680px,calc(100%-2rem))] -translate-x-1/2 rounded-medium border border-red-200 bg-red-50 px-4 py-3 text-sm text-[var(--danger)]">
@@ -657,16 +637,24 @@ export function InterviewRecorder() {
         </div>
       ) : null}
 
-      <div className="h-full px-4 pb-6 pt-24">
+      <div className="h-full px-4 pb-16 pt-5">
         <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4">
           <Tabs
             selectedKey={activeSection}
             onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
-            className="studio-tabs mx-auto w-fit rounded-medium p-2 text-white"
+            className="mx-auto w-fit"
           >
-            <Tabs.List aria-label="Prep sections">
+            <Tabs.List aria-label="Prep sections" className="flex gap-2 rounded-full bg-transparent p-0">
               {prepSections.map((section) => (
-                <Tab id={section.id} key={section.id}>
+                <Tab
+                  id={section.id}
+                  key={section.id}
+                  className={`rounded-full border px-5 py-2 text-sm font-semibold transition ${
+                    activeSection === section.id
+                      ? "border-[var(--accent-strong)] bg-[var(--accent)] text-white shadow-lg shadow-blue-900/20"
+                      : "border-white/20 bg-white/20 text-white hover:bg-white/30"
+                  }`}
+                >
                   {section.label}
                 </Tab>
               ))}
@@ -937,6 +925,17 @@ export function InterviewRecorder() {
         <Video aria-hidden="true" className="h-5 w-5" />
         Start recording
       </Button>
+
+      <footer className="fixed bottom-5 left-5 z-30 text-sm font-semibold text-white/78">
+        <Link
+          href="https://github.com/bradleystalcup-rgb/Asynchronous-Interview-Helper"
+          target="_blank"
+          rel="noreferrer"
+          className="text-white/78 underline-offset-4 hover:text-white hover:underline"
+        >
+          See this in GitHub
+        </Link>
+      </footer>
     </main>
   );
 
