@@ -24,6 +24,7 @@ import {
   Tabs,
   TextArea,
 } from "@heroui/react";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { recordingFilename, splitScriptIntoParagraphs } from "@/lib/teleprompter";
 
@@ -502,7 +503,7 @@ export function InterviewRecorder() {
   }, [appMode, autoscrollSpeed, promptMode]);
 
   const timerControl = timerVisible ? (
-    <div className="flex items-center gap-3 rounded-medium border border-white/15 bg-black/25 px-3 py-2 text-white backdrop-blur">
+    <div className="record-glass flex items-center gap-3 rounded-medium px-3 py-2 text-white">
       {timerProgressStyle === "circle" ? (
         <div
           className="grid h-12 w-12 place-items-center rounded-full text-xs font-semibold"
@@ -545,21 +546,21 @@ export function InterviewRecorder() {
   const prepScreen = (
     <main
       ref={prepRootRef}
-      className="fixed inset-0 z-10 overflow-hidden text-[var(--foreground)]"
-      style={{ backgroundColor: lightingBackground }}
+      className="studio-shell fixed inset-0 z-10 overflow-hidden text-[var(--foreground)]"
+      style={{ "--lighting-background": lightingBackground } as CSSProperties}
     >
       <video ref={videoRef} muted playsInline className="hidden" />
 
-      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between border-b border-white/15 bg-black/25 px-4 py-3 text-white backdrop-blur">
+      <div className="studio-topbar absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 text-white">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-white/70">Prep mode</p>
-          <p className="text-sm font-semibold">Set up the take before recording</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">Prep mode</p>
+          <p className="text-sm font-semibold text-white/95">Set up the take before recording</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             type="button"
             onClick={exitPrep}
-            className="grid h-10 w-10 place-items-center rounded-full bg-white text-black hover:bg-white/85"
+            className="quiet-action grid h-10 w-10 place-items-center rounded-full"
             aria-label="Exit prep mode"
           >
             <X aria-hidden="true" className="h-5 w-5" />
@@ -578,7 +579,7 @@ export function InterviewRecorder() {
           <Tabs
             selectedKey={activeSection}
             onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
-            className="rounded-medium border border-white/15 bg-black/25 p-2 text-white backdrop-blur"
+            className="studio-tabs rounded-medium p-2 text-white"
           >
             <Tabs.List aria-label="Prep sections">
               {prepSections.map((section) => (
@@ -591,12 +592,12 @@ export function InterviewRecorder() {
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-2">
             {activeSection === "video" ? (
-              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
+              <Card className="studio-card rounded-large">
               <CardHeader>
                 <h2 className="text-xl font-semibold">Video</h2>
               </CardHeader>
               <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
-                <div className="overflow-hidden rounded-medium bg-black">
+                <div className="overflow-hidden rounded-large bg-black shadow-inner">
                   <canvas className="aspect-video w-full object-cover" ref={canvasRef} />
                 </div>
                 <div className="space-y-5">
@@ -609,7 +610,7 @@ export function InterviewRecorder() {
                           type="button"
                           onClick={() => setSelectedToneId(tone.id)}
                           variant={selectedToneId === tone.id ? "primary" : "outline"}
-                          className={`h-auto justify-start rounded-medium p-2 text-left ${
+                          className={`h-auto justify-start rounded-medium p-2 text-left transition ${
                             selectedToneId === tone.id ? "bg-[var(--accent-soft)]" : "bg-white"
                           }`}
                         >
@@ -631,7 +632,7 @@ export function InterviewRecorder() {
                           type="button"
                           onClick={() => setBackgroundColor(preset.color)}
                           variant={backgroundColor === preset.color ? "primary" : "outline"}
-                          className={`inline-flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold ${
+                          className={`inline-flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold transition ${
                             backgroundColor === preset.color ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-white"
                           }`}
                         >
@@ -653,7 +654,7 @@ export function InterviewRecorder() {
                           }
                         }}
                       >
-                        <ColorField.Group className="flex h-11 items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-3">
+                        <ColorField.Group className="quiet-action flex h-11 items-center gap-2 rounded-medium px-3">
                           <ColorSwatch color={backgroundColor} className="h-6 w-6 rounded-full border border-black/10" />
                           <ColorField.Input className="min-w-0 flex-1 bg-transparent text-sm font-semibold uppercase text-[var(--foreground)] outline-none" />
                         </ColorField.Group>
@@ -677,7 +678,7 @@ export function InterviewRecorder() {
             ) : null}
 
             {activeSection === "script" ? (
-              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
+              <Card className="studio-card rounded-large">
               <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">Script</h2>
                 <Tabs selectedKey={promptMode} onSelectionChange={(key) => setPromptMode(key as PromptMode)}>
@@ -691,7 +692,7 @@ export function InterviewRecorder() {
                 <TextArea
                   value={script}
                   onChange={(event) => handleScriptChange(event.target.value)}
-                  className="min-h-[280px] w-full resize-y rounded-medium border border-[var(--line)] bg-white p-3 text-sm leading-6"
+                  className="min-h-[280px] w-full resize-y rounded-medium border border-[var(--line)] bg-white/95 p-3 text-sm leading-6 shadow-inner"
                   aria-label="Script"
                 />
                 <div>
@@ -730,7 +731,7 @@ export function InterviewRecorder() {
             ) : null}
 
             {activeSection === "timer" ? (
-              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
+              <Card className="studio-card rounded-large">
               <CardHeader>
                 <h2 className="text-xl font-semibold">Timer</h2>
               </CardHeader>
@@ -784,7 +785,7 @@ export function InterviewRecorder() {
             ) : null}
 
             {activeSection === "misc" ? (
-              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
+              <Card className="studio-card rounded-large">
               <CardHeader>
                 <h2 className="text-xl font-semibold">Misc</h2>
               </CardHeader>
@@ -820,7 +821,7 @@ export function InterviewRecorder() {
       <Button
         type="button"
         onClick={startCountdown}
-        className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-full bg-[#a93434] px-6 py-4 text-base font-semibold text-white shadow-xl hover:bg-[#842727]"
+        className="danger-action fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-full px-6 py-4 text-base font-semibold transition hover:scale-[1.01]"
       >
         <Video aria-hidden="true" className="h-5 w-5" />
         Start recording
@@ -853,12 +854,12 @@ export function InterviewRecorder() {
       }}
     >
       <video ref={videoRef} muted playsInline className="hidden" />
-      <canvas ref={canvasRef} className={`absolute w-[min(320px,34vw)] rounded-large border border-white/20 bg-black shadow-2xl ${cameraPreviewClass}`} />
+      <canvas ref={canvasRef} className={`absolute w-[min(320px,34vw)] rounded-large border border-white/20 bg-black shadow-2xl ring-1 ring-black/20 ${cameraPreviewClass}`} />
 
       <div className="absolute left-1/2 top-8 w-[min(920px,calc(100%-2rem))] -translate-x-1/2">
         <div
           ref={prompterRef}
-          className="max-h-[38vh] overflow-hidden rounded-large border border-white/15 bg-black/28 p-5 text-center text-white shadow-xl backdrop-blur"
+          className="record-glass max-h-[38vh] overflow-hidden rounded-large p-5 text-center text-white"
         >
           {paragraphs.length ? (
             promptMode === "paragraph" ? (
@@ -895,7 +896,7 @@ export function InterviewRecorder() {
           event.stopPropagation();
           stopRecording();
         }}
-        className="absolute right-6 top-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 font-semibold text-black shadow-lg hover:bg-white/85"
+        className="quiet-action absolute right-6 top-6 inline-flex items-center gap-2 rounded-full px-5 py-3 font-semibold"
       >
         <Square aria-hidden="true" className="h-4 w-4" />
         Stop
@@ -914,21 +915,21 @@ export function InterviewRecorder() {
           type="button"
           onClick={() => setAppMode("prep")}
           variant="outline"
-          className="inline-flex items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-4 py-2 font-semibold"
+          className="quiet-action inline-flex items-center gap-2 rounded-medium px-4 py-2 font-semibold"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Back to prep
         </Button>
       </header>
       {recordingUrl ? (
-        <video src={recordingUrl} controls className="max-h-[70vh] w-full rounded-large border border-[var(--line)] bg-black" />
+        <video src={recordingUrl} controls className="max-h-[70vh] w-full rounded-large border border-[var(--line)] bg-black shadow-xl" />
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         {recordingUrl ? (
           <Link
             href={recordingUrl}
             download={recordingFilename()}
-            className="inline-flex items-center gap-2 rounded-medium bg-[var(--accent)] px-5 py-3 font-semibold text-white hover:bg-[var(--accent-strong)]"
+            className="primary-action inline-flex items-center gap-2 rounded-medium px-5 py-3 font-semibold"
           >
             <Download aria-hidden="true" className="h-4 w-4" />
             Download WebM
@@ -938,7 +939,7 @@ export function InterviewRecorder() {
           type="button"
           onClick={retake}
           variant="outline"
-          className="inline-flex items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-5 py-3 font-semibold"
+          className="quiet-action inline-flex items-center gap-2 rounded-medium px-5 py-3 font-semibold"
         >
           <RotateCcw aria-hidden="true" className="h-4 w-4" />
           Retake
@@ -976,7 +977,7 @@ function TeleprompterPreview({
   activeParagraph: number;
 }) {
   return (
-    <div className="max-h-[290px] overflow-auto rounded-medium border border-[var(--line)] bg-[#fbfaf7] p-4">
+    <div className="max-h-[290px] overflow-auto rounded-medium border border-[var(--line)] bg-white/90 p-4 shadow-inner">
       {paragraphs.length ? (
         paragraphs.map((paragraph, index) => (
           <p
