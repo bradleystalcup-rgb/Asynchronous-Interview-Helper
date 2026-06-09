@@ -227,6 +227,16 @@ export function InterviewRecorder() {
     context.restore();
   }, [qualityPreset, selectedTone.filter]);
 
+  const startDrawing = useCallback(() => {
+    const loop = () => {
+      drawToCanvas();
+      drawFrameRef.current = requestAnimationFrame(loop);
+    };
+
+    stopDrawing();
+    loop();
+  }, [drawToCanvas, stopDrawing]);
+
   const stopCamera = useCallback(() => {
     stopDrawing();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -260,13 +270,14 @@ export function InterviewRecorder() {
           await videoRef.current.play();
         }
 
+        startDrawing();
         setCameraAccess("granted");
       } catch (cameraError) {
         setCameraAccess(cameraError instanceof Error && cameraError.message.includes("support") ? "unsupported" : "denied");
         setError(cameraError instanceof Error ? cameraError.message : "Camera permission failed.");
       }
     },
-    [qualityPreset, stopCamera],
+    [qualityPreset, startDrawing, stopCamera],
   );
 
   const enterFullscreen = useCallback(async () => {
@@ -400,17 +411,11 @@ export function InterviewRecorder() {
 
   useEffect(() => {
     if (appMode === "prep" || appMode === "countdown" || appMode === "record") {
-      const loop = () => {
-        drawToCanvas();
-        drawFrameRef.current = requestAnimationFrame(loop);
-      };
-
-      stopDrawing();
-      loop();
+      startDrawing();
     }
 
     return stopDrawing;
-  }, [appMode, drawToCanvas, stopDrawing]);
+  }, [appMode, startDrawing, stopDrawing]);
 
   useEffect(() => {
     if (appMode !== "record") {
