@@ -17,14 +17,16 @@ import {
   Card,
   CardContent,
   CardHeader,
-  ColorArea,
-  ColorField,
   ColorPicker,
   ColorSlider,
   ColorSwatch,
+  ColorSwatchPicker,
+  Label,
   Link,
+  ListBox,
   Modal,
   parseColor,
+  Select,
   Slider,
   Tab,
   Tabs,
@@ -32,6 +34,7 @@ import {
   Tooltip,
   useOverlayState,
 } from "@heroui/react";
+import type { ColorChannel, ColorSpace } from "@heroui/react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { recordingFilename, splitScriptIntoParagraphs } from "@/lib/teleprompter";
@@ -49,6 +52,7 @@ type Tone = {
   label: string;
   filter: string;
   className: string;
+  swatchColor: string;
 };
 
 type PrepSection = {
@@ -57,30 +61,34 @@ type PrepSection = {
 };
 
 const tones: Tone[] = [
-  { id: "natural", label: "Natural", filter: "none", className: "tone-natural" },
+  { id: "natural", label: "Natural", filter: "none", className: "tone-natural", swatchColor: "#5d83d9" },
   {
     id: "warm",
     label: "Warm",
     filter: "sepia(0.18) saturate(1.18) contrast(1.03) brightness(1.03)",
     className: "tone-warm",
+    swatchColor: "#d8a15f",
   },
   {
     id: "crisp",
     label: "Crisp",
     filter: "saturate(0.96) contrast(1.14) brightness(1.04)",
     className: "tone-crisp",
+    swatchColor: "#06b6d4",
   },
   {
     id: "mono",
     label: "Mono",
     filter: "grayscale(1) contrast(1.08) brightness(1.04)",
     className: "tone-mono",
+    swatchColor: "#687083",
   },
   {
     id: "studio",
     label: "Studio",
     filter: "saturate(1.08) contrast(1.08) brightness(0.98) hue-rotate(-5deg)",
     className: "tone-studio",
+    swatchColor: "#46676c",
   },
 ];
 
@@ -98,6 +106,12 @@ const backgroundPresets = [
   { label: "Soft", color: "#2d3142" },
   { label: "Bright", color: "#f1eee7" },
 ];
+
+const colorChannelsByColorSpace: Record<ColorSpace, ColorChannel[]> = {
+  hsb: ["hue", "saturation", "brightness", "alpha"],
+  hsl: ["hue", "saturation", "lightness", "alpha"],
+  rgb: ["red", "green", "blue", "alpha"],
+};
 
 const defaultScript =
   "Thank you for considering my application. I am excited about this role because it connects directly with the kind of focused, practical work I enjoy most.\n\n" +
@@ -131,6 +145,32 @@ function colorWithBrightness(color: string, brightness: number) {
   return `rgb(${Math.round(red * factor)}, ${Math.round(green * factor)}, ${Math.round(blue * factor)})`;
 }
 
+function getHueFromHex(color: string) {
+  const normalized = color.replace("#", "");
+  const red = Number.parseInt(normalized.slice(0, 2), 16) / 255;
+  const green = Number.parseInt(normalized.slice(2, 4), 16) / 255;
+  const blue = Number.parseInt(normalized.slice(4, 6), 16) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+
+  if (delta === 0) {
+    return 0;
+  }
+
+  let hue = 0;
+
+  if (max === red) {
+    hue = 60 * (((green - blue) / delta) % 6);
+  } else if (max === green) {
+    hue = 60 * ((blue - red) / delta + 2);
+  } else {
+    hue = 60 * ((red - green) / delta + 4);
+  }
+
+  return (hue + 360) % 360;
+}
+
 function getCameraConstraints(quality: QualityPreset): MediaStreamConstraints {
   const idealWidth = quality === "high" ? 1920 : 1280;
   const idealHeight = quality === "high" ? 1080 : 720;
@@ -155,7 +195,10 @@ export function InterviewRecorder() {
   const [activeParagraph, setActiveParagraph] = useState(0);
   const [autoscrollSpeed, setAutoscrollSpeed] = useState(42);
   const [selectedToneId, setSelectedToneId] = useState("natural");
+  const [customToneColor, setCustomToneColor] = useState("#84cc16");
+  const [customToneColorSpace, setCustomToneColorSpace] = useState<ColorSpace>("hsl");
   const [backgroundColor, setBackgroundColor] = useState("#1f2328");
+  const [backgroundColorSpace, setBackgroundColorSpace] = useState<ColorSpace>("hsl");
   const [backgroundBrightness, setBackgroundBrightness] = useState(100);
   const [timerMode, setTimerMode] = useState<TimerMode>("elapsed");
   const [timerVisible, setTimerVisible] = useState(true);
@@ -183,7 +226,19 @@ export function InterviewRecorder() {
   const shouldStartRecordingRef = useRef(false);
 
   const paragraphs = useMemo(() => splitScriptIntoParagraphs(script), [script]);
-  const selectedTone = tones.find((tone) => tone.id === selectedToneId) ?? tones[0];
+  const customTone = useMemo<Tone>(() => {
+    const hue = Math.round(getHueFromHex(customToneColor));
+
+    return {
+      id: "custom",
+      label: "Custom",
+      filter: `saturate(1.12) contrast(1.06) brightness(1.02) hue-rotate(${hue}deg)`,
+      className: "",
+      swatchColor: customToneColor,
+    };
+  }, [customToneColor]);
+  const filterTones = useMemo(() => [...tones, customTone], [customTone]);
+  const selectedTone = filterTones.find((tone) => tone.id === selectedToneId) ?? tones[0];
   const lightingBackground = colorWithBrightness(backgroundColor, backgroundBrightness);
   const timerRemaining = timerDuration - recordElapsedSeconds;
   const timerDisplaySeconds = timerMode === "countdown" ? Math.abs(timerRemaining) : recordElapsedSeconds;
@@ -710,91 +765,131 @@ export function InterviewRecorder() {
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-sm font-semibold">Camera filter</h3>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      {tones.map((tone) => (
-                        <Button
+                    <ColorSwatchPicker
+                      aria-label="Camera filter"
+                      value={selectedTone.swatchColor}
+                      onChange={(color) => {
+                        const selectedColor = color.toString("hex").toLowerCase();
+                        const nextTone = filterTones.find((tone) => tone.swatchColor.toLowerCase() === selectedColor);
+
+                        if (nextTone) {
+                          setSelectedToneId(nextTone.id);
+                        }
+                      }}
+                      className="mt-3 flex flex-wrap gap-3"
+                    >
+                      {filterTones.map((tone) => (
+                        <ColorSwatchPicker.Item
                           key={tone.id}
-                          type="button"
-                          onClick={() => setSelectedToneId(tone.id)}
-                          variant={selectedToneId === tone.id ? "primary" : "outline"}
-                          className={`h-auto justify-start rounded-medium p-2 text-left transition ${
-                            selectedToneId === tone.id ? "bg-[var(--accent-soft)]" : "bg-white"
-                          }`}
+                          color={tone.swatchColor}
+                          aria-label={tone.label}
+                          onPress={() => setSelectedToneId(tone.id)}
+                          className="grid h-11 w-11 place-items-center rounded-full bg-white/75 p-1 shadow-sm transition data-[selected=true]:bg-[var(--accent-soft)] data-[selected=true]:shadow-md"
                         >
-                          <span className="block w-full">
-                            <span className={`block h-10 rounded bg-gradient-to-br from-[#d8c1a7] to-[#46676c] ${tone.className}`} />
-                            <span className="mt-2 block text-sm font-semibold">{tone.label}</span>
-                          </span>
-                        </Button>
+                          {tone.id === "custom" ? (
+                            <ColorPicker
+                              value={parseColor(customToneColor)}
+                              onChange={(color) => {
+                                if (color) {
+                                  setCustomToneColor(color.toString("hex"));
+                                  setSelectedToneId("custom");
+                                }
+                              }}
+                            >
+                              <Tooltip>
+                                <Tooltip.Trigger>
+                                  <ColorPicker.Trigger className="relative grid h-9 w-9 place-items-center rounded-full">
+                                    <ColorSwatch color={customToneColor} className="h-8 w-8 rounded-full border border-black/10" />
+                                    <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
+                                  </ColorPicker.Trigger>
+                                </Tooltip.Trigger>
+                                <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
+                                  Custom
+                                </Tooltip.Content>
+                              </Tooltip>
+                              <ColorPicker.Popover className="studio-card flex w-72 flex-col gap-3 rounded-large px-3 py-4 shadow-xl">
+                                <ColorSpaceSelect colorSpace={customToneColorSpace} onChange={setCustomToneColorSpace} />
+                                <ColorSliderControls colorSpace={customToneColorSpace} />
+                              </ColorPicker.Popover>
+                            </ColorPicker>
+                          ) : (
+                            <Tooltip>
+                              <Tooltip.Trigger>
+                                <span className="relative grid h-9 w-9 place-items-center rounded-full">
+                                  <ColorSwatchPicker.Swatch className={`h-8 w-8 rounded-full border border-black/10 ${tone.className}`} />
+                                  <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
+                                </span>
+                              </Tooltip.Trigger>
+                              <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
+                                {tone.label}
+                              </Tooltip.Content>
+                            </Tooltip>
+                          )}
+                        </ColorSwatchPicker.Item>
                       ))}
-                    </div>
+                    </ColorSwatchPicker>
                   </div>
 
                   <div>
                     <h3 className="text-sm font-semibold">Screen lighting</h3>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <ColorSwatchPicker
+                      aria-label="Screen lighting"
+                      value={backgroundColor}
+                      onChange={(color) => setBackgroundColor(color.toString("hex"))}
+                      className="mt-3 flex flex-wrap gap-3"
+                    >
                       {backgroundPresets.map((preset) => (
-                        <Button
+                        <ColorSwatchPicker.Item
                           key={preset.label}
-                          type="button"
-                          onClick={() => setBackgroundColor(preset.color)}
-                          variant={backgroundColor === preset.color ? "primary" : "outline"}
-                          className={`inline-flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold transition ${
-                            backgroundColor === preset.color ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-white"
-                          }`}
+                          color={preset.color}
+                          aria-label={preset.label}
+                          onPress={() => setBackgroundColor(preset.color)}
+                          className="grid h-11 w-11 place-items-center rounded-full bg-white/75 p-1 shadow-sm transition data-[selected=true]:bg-[var(--accent-soft)] data-[selected=true]:shadow-md"
                         >
-                          <ColorSwatch
-                            color={preset.color}
-                            className="h-4 w-4 rounded-full border border-black/10"
-                          />
-                          {preset.label}
-                        </Button>
+                          <Tooltip>
+                            <Tooltip.Trigger>
+                              <span className="relative grid h-9 w-9 place-items-center rounded-full">
+                                <ColorSwatchPicker.Swatch className="h-8 w-8 rounded-full border border-black/10" />
+                                <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
+                              </span>
+                            </Tooltip.Trigger>
+                            <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
+                              {preset.label}
+                            </Tooltip.Content>
+                          </Tooltip>
+                        </ColorSwatchPicker.Item>
                       ))}
-                    </div>
-                    <div className="mt-3">
-                      <p className="mb-2 text-sm font-medium text-[var(--ink-muted)]">Custom color</p>
-                      <ColorPicker
-                        value={parseColor(backgroundColor)}
-                        onChange={(color) => {
-                          if (color) {
-                            setBackgroundColor(color.toString("hex"));
-                          }
-                        }}
+                      <ColorSwatchPicker.Item
+                        color={backgroundColor}
+                        aria-label="Custom"
+                        className="grid h-11 w-11 place-items-center rounded-full bg-white/75 p-1 shadow-sm transition data-[selected=true]:bg-[var(--accent-soft)] data-[selected=true]:shadow-md"
                       >
-                        <ColorPicker.Trigger className="quiet-action flex h-11 w-full items-center gap-2 rounded-medium px-3 text-left">
-                          <ColorSwatch color={backgroundColor} className="h-6 w-6 rounded-full border border-black/10" />
-                          <span className="flex-1 text-sm font-semibold uppercase text-[var(--foreground)]">
-                            {backgroundColor}
-                          </span>
-                          <span className="text-xs font-semibold text-[var(--accent-strong)]">Pick</span>
-                        </ColorPicker.Trigger>
-                        <ColorPicker.Popover className="studio-card w-72 rounded-large p-4 shadow-xl">
-                          <div className="space-y-4">
-                            <ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" className="h-40 rounded-medium">
-                              <ColorArea.Thumb />
-                            </ColorArea>
-                            <ColorSlider channel="hue" colorSpace="hsb" className="w-full">
-                              <ColorSlider.Track>
-                                <ColorSlider.Thumb />
-                              </ColorSlider.Track>
-                            </ColorSlider>
-                            <ColorField
-                              value={parseColor(backgroundColor)}
-                              onChange={(color) => {
-                                if (color) {
-                                  setBackgroundColor(color.toString("hex"));
-                                }
-                              }}
-                            >
-                              <ColorField.Group className="quiet-action flex h-10 items-center gap-2 rounded-medium px-3">
-                                <ColorSwatch color={backgroundColor} className="h-5 w-5 rounded-full border border-black/10" />
-                                <ColorField.Input className="min-w-0 flex-1 bg-transparent text-sm font-semibold uppercase text-[var(--foreground)] outline-none" />
-                              </ColorField.Group>
-                            </ColorField>
-                          </div>
-                        </ColorPicker.Popover>
-                      </ColorPicker>
-                    </div>
+                        <ColorPicker
+                          value={parseColor(backgroundColor)}
+                          onChange={(color) => {
+                            if (color) {
+                              setBackgroundColor(color.toString("hex"));
+                            }
+                          }}
+                        >
+                          <Tooltip>
+                            <Tooltip.Trigger>
+                              <ColorPicker.Trigger className="relative grid h-9 w-9 place-items-center rounded-full">
+                                <ColorSwatch color={backgroundColor} className="h-8 w-8 rounded-full border border-black/10" />
+                                <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
+                              </ColorPicker.Trigger>
+                            </Tooltip.Trigger>
+                            <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
+                              Custom
+                            </Tooltip.Content>
+                          </Tooltip>
+                          <ColorPicker.Popover className="studio-card flex w-72 flex-col gap-3 rounded-large px-3 py-4 shadow-xl">
+                            <ColorSpaceSelect colorSpace={backgroundColorSpace} onChange={setBackgroundColorSpace} />
+                            <ColorSliderControls colorSpace={backgroundColorSpace} />
+                          </ColorPicker.Popover>
+                        </ColorPicker>
+                      </ColorSwatchPicker.Item>
+                    </ColorSwatchPicker>
                     <label className="mt-3 block text-sm font-medium text-[var(--ink-muted)]">
                       Brightness
                       <Slider
@@ -1168,6 +1263,61 @@ function TeleprompterPreview({
       ) : (
         <p className="text-sm text-[var(--ink-muted)]">Your script preview will appear here.</p>
       )}
+    </div>
+  );
+}
+
+function ColorSpaceSelect({
+  colorSpace,
+  onChange,
+}: {
+  colorSpace: ColorSpace;
+  onChange: (colorSpace: ColorSpace) => void;
+}) {
+  return (
+    <Select
+      aria-label="Color space"
+      value={colorSpace}
+      variant="secondary"
+      onChange={(value) => onChange(value as ColorSpace)}
+    >
+      <Select.Trigger className="quiet-action flex h-10 items-center justify-between rounded-medium px-3 text-sm font-semibold">
+        <Select.Value className="uppercase" />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          {Object.keys(colorChannelsByColorSpace).map((space) => (
+            <ListBox.Item key={space} id={space} textValue={space} className="uppercase">
+              {space}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
+  );
+}
+
+function ColorSliderControls({ colorSpace }: { colorSpace: ColorSpace }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {colorChannelsByColorSpace[colorSpace].map((channel) => (
+        // @ts-expect-error - HeroUI's ColorSlider union cannot correlate dynamic colorSpace with channel.
+        <ColorSlider
+          key={channel}
+          aria-label={channel}
+          channel={channel}
+          className="gap-1 px-1"
+          colorSpace={colorSpace}
+        >
+          <Label className="capitalize">{channel}</Label>
+          <ColorSlider.Output className="text-[var(--ink-muted)]" />
+          <ColorSlider.Track>
+            <ColorSlider.Thumb />
+          </ColorSlider.Track>
+        </ColorSlider>
+      ))}
     </div>
   );
 }
