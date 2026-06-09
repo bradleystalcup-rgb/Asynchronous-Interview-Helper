@@ -3,11 +3,8 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Camera,
   Check,
   Download,
-  Maximize2,
-  Minimize2,
   RotateCcw,
   Square,
   Video,
@@ -30,7 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { recordingFilename, splitScriptIntoParagraphs } from "@/lib/teleprompter";
 
-type AppMode = "home" | "prep" | "countdown" | "record" | "review";
+type AppMode = "prep" | "countdown" | "record" | "review";
 type PromptMode = "paragraph" | "autoscroll";
 type TimerMode = "elapsed" | "countdown";
 type TimerProgressStyle = "circle" | "bar";
@@ -142,7 +139,7 @@ function getCameraConstraints(quality: QualityPreset): MediaStreamConstraints {
 }
 
 export function InterviewRecorder() {
-  const [appMode, setAppMode] = useState<AppMode>("home");
+  const [appMode, setAppMode] = useState<AppMode>("prep");
   const [script, setScript] = useState(defaultScript);
   const [promptMode, setPromptMode] = useState<PromptMode>("paragraph");
   const [activeParagraph, setActiveParagraph] = useState(0);
@@ -156,7 +153,6 @@ export function InterviewRecorder() {
   const [timerDuration, setTimerDuration] = useState(120);
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>("standard");
   const [cameraPosition, setCameraPosition] = useState<CameraPosition>("bottom-center");
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeSection, setActiveSection] = useState<PrepSection["id"]>("video");
   const [recordElapsedSeconds, setRecordElapsedSeconds] = useState(0);
   const [countdownValue, setCountdownValue] = useState(3);
@@ -166,7 +162,6 @@ export function InterviewRecorder() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const prompterRef = useRef<HTMLDivElement | null>(null);
-  const prepScrollRef = useRef<HTMLDivElement | null>(null);
   const prepRootRef = useRef<HTMLDivElement | null>(null);
   const drawFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -263,7 +258,7 @@ export function InterviewRecorder() {
     try {
       await prepRootRef.current?.requestFullscreen?.();
     } catch {
-      setIsFullscreen(false);
+      // Browser fullscreen can be blocked; record mode still fills the viewport.
     }
   }, []);
 
@@ -273,27 +268,12 @@ export function InterviewRecorder() {
     }
   }, []);
 
-  const enterPrep = useCallback(async () => {
-    setAppMode("prep");
-    setActiveSection("video");
-    await startCamera();
-    await enterFullscreen();
-  }, [enterFullscreen, startCamera]);
-
   const exitPrep = useCallback(async () => {
     await exitFullscreen();
     stopCamera();
-    setAppMode("home");
+    setAppMode("prep");
+    setActiveSection("video");
   }, [exitFullscreen, stopCamera]);
-
-  const toggleFullscreen = useCallback(async () => {
-    if (document.fullscreenElement) {
-      await exitFullscreen();
-      return;
-    }
-
-    await enterFullscreen();
-  }, [enterFullscreen, exitFullscreen]);
 
   const handleScriptChange = useCallback((value: string) => {
     const nextParagraphCount = splitScriptIntoParagraphs(value).length;
@@ -362,9 +342,10 @@ export function InterviewRecorder() {
   }, [drawToCanvas, qualityPreset, recordingUrl, startCamera, stopCamera]);
 
   const startCountdown = useCallback(() => {
+    void enterFullscreen();
     setCountdownValue(3);
     setAppMode("countdown");
-  }, []);
+  }, [enterFullscreen]);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") {
@@ -394,15 +375,6 @@ export function InterviewRecorder() {
   );
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
-
-  useEffect(() => {
     return () => {
       stopDrawing();
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -425,6 +397,12 @@ export function InterviewRecorder() {
 
     return stopDrawing;
   }, [appMode, drawToCanvas, stopDrawing]);
+
+  useEffect(() => {
+    if (appMode === "prep" && !mediaStreamRef.current) {
+      void startCamera();
+    }
+  }, [appMode, startCamera]);
 
   useEffect(() => {
     if (appMode !== "record") {
@@ -523,37 +501,6 @@ export function InterviewRecorder() {
     return () => cancelAnimationFrame(animationFrame);
   }, [appMode, autoscrollSpeed, promptMode]);
 
-  useEffect(() => {
-    if (appMode !== "prep" || !prepScrollRef.current) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (visibleEntry?.target.id) {
-          setActiveSection(visibleEntry.target.id as PrepSection["id"]);
-        }
-      },
-      {
-        root: prepScrollRef.current,
-        threshold: [0.32, 0.5, 0.68],
-      },
-    );
-
-    prepSections.forEach((section) => {
-      const element = document.getElementById(section.id);
-      if (element) {
-        observer.observe(element);
-      }
-    });
-
-    return () => observer.disconnect();
-  }, [appMode]);
-
   const timerControl = timerVisible ? (
     <div className="flex items-center gap-3 rounded-medium border border-white/15 bg-black/25 px-3 py-2 text-white backdrop-blur">
       {timerProgressStyle === "circle" ? (
@@ -595,42 +542,6 @@ export function InterviewRecorder() {
         ? "right-6 bottom-6"
         : "left-1/2 bottom-6 -translate-x-1/2";
 
-  const homeScreen = (
-    <main className="mx-auto grid min-h-screen w-full max-w-5xl place-items-center px-4 py-8">
-      <section className="w-full rounded-large border border-[var(--line)] bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--accent-strong)]">
-          Local recorder
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold text-[var(--foreground)] sm:text-5xl">
-          Asynchronous Interview Helper
-        </h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--ink-muted)]">
-          Prepare your script, tune screen lighting, record locally, and download a clean WebM response.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            onClick={enterPrep}
-            className="inline-flex items-center gap-2 rounded-medium bg-[var(--accent)] px-5 py-3 font-semibold text-white hover:bg-[var(--accent-strong)]"
-          >
-            <Camera aria-hidden="true" className="h-4 w-4" />
-            Enter prep mode
-          </Button>
-          {recordingUrl ? (
-            <Link
-              href={recordingUrl}
-              download={recordingFilename()}
-              className="inline-flex items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-5 py-3 font-semibold text-[var(--foreground)] hover:bg-[var(--panel-muted)]"
-            >
-              <Download aria-hidden="true" className="h-4 w-4" />
-              Download last take
-            </Link>
-          ) : null}
-        </div>
-      </section>
-    </main>
-  );
-
   const prepScreen = (
     <main
       ref={prepRootRef}
@@ -645,15 +556,6 @@ export function InterviewRecorder() {
           <p className="text-sm font-semibold">Set up the take before recording</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={toggleFullscreen}
-            variant="outline"
-            className="inline-flex items-center gap-2 rounded-medium border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
-          >
-            {isFullscreen ? <Minimize2 aria-hidden="true" className="h-4 w-4" /> : <Maximize2 aria-hidden="true" className="h-4 w-4" />}
-            {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          </Button>
           <Button
             type="button"
             onClick={exitPrep}
@@ -671,24 +573,25 @@ export function InterviewRecorder() {
         </div>
       ) : null}
 
-      <div className="grid h-full grid-cols-[156px_minmax(0,1fr)] gap-4 px-4 pb-24 pt-24 max-md:grid-cols-1">
-        <nav className="sticky top-24 h-fit rounded-medium border border-white/15 bg-black/25 p-2 text-white backdrop-blur max-md:hidden">
-          {prepSections.map((section) => (
-            <Link
-              key={section.id}
-              href={`#${section.id}`}
-              className={`block rounded px-3 py-2 text-sm font-semibold ${
-                activeSection === section.id ? "bg-white text-black" : "text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {section.label}
-            </Link>
-          ))}
-        </nav>
+      <div className="h-full px-4 pb-24 pt-24">
+        <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4">
+          <Tabs
+            selectedKey={activeSection}
+            onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
+            className="rounded-medium border border-white/15 bg-black/25 p-2 text-white backdrop-blur"
+          >
+            <Tabs.List aria-label="Prep sections">
+              {prepSections.map((section) => (
+                <Tab id={section.id} key={section.id}>
+                  {section.label}
+                </Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
 
-        <div ref={prepScrollRef} className="h-full overflow-y-auto pr-2">
-          <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 pb-8">
-            <Card id="video" className="scroll-mt-24 rounded-medium border border-white/20 bg-white/95 shadow-sm">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+            {activeSection === "video" ? (
+              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
               <CardHeader>
                 <h2 className="text-xl font-semibold">Video</h2>
               </CardHeader>
@@ -771,8 +674,10 @@ export function InterviewRecorder() {
                 </div>
               </CardContent>
             </Card>
+            ) : null}
 
-            <Card id="script" className="scroll-mt-24 rounded-medium border border-white/20 bg-white/95 shadow-sm">
+            {activeSection === "script" ? (
+              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
               <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">Script</h2>
                 <Tabs selectedKey={promptMode} onSelectionChange={(key) => setPromptMode(key as PromptMode)}>
@@ -822,8 +727,10 @@ export function InterviewRecorder() {
                 </div>
               </CardContent>
             </Card>
+            ) : null}
 
-            <Card id="timer" className="scroll-mt-24 rounded-medium border border-white/20 bg-white/95 shadow-sm">
+            {activeSection === "timer" ? (
+              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
               <CardHeader>
                 <h2 className="text-xl font-semibold">Timer</h2>
               </CardHeader>
@@ -874,22 +781,15 @@ export function InterviewRecorder() {
                 </div>
               </CardContent>
             </Card>
+            ) : null}
 
-            <Card id="misc" className="scroll-mt-24 rounded-medium border border-white/20 bg-white/95 shadow-sm">
+            {activeSection === "misc" ? (
+              <Card className="rounded-medium border border-white/20 bg-white/95 shadow-sm">
               <CardHeader>
                 <h2 className="text-xl font-semibold">Misc</h2>
               </CardHeader>
               <CardContent className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-4">
-                  <Button
-                    type="button"
-                    onClick={toggleFullscreen}
-                    variant="outline"
-                    className="inline-flex items-center gap-2 rounded-medium border border-[var(--line)] bg-white px-4 py-2 font-semibold"
-                  >
-                    {isFullscreen ? <Minimize2 aria-hidden="true" className="h-4 w-4" /> : <Maximize2 aria-hidden="true" className="h-4 w-4" />}
-                    {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                  </Button>
                   <SettingChoice
                     label="Quality"
                     options={[
@@ -912,6 +812,7 @@ export function InterviewRecorder() {
                 />
               </CardContent>
             </Card>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1062,7 +963,7 @@ export function InterviewRecorder() {
     return reviewScreen;
   }
 
-  return homeScreen;
+  return prepScreen;
 }
 
 function TeleprompterPreview({
