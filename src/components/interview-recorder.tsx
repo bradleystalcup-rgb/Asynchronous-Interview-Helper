@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Check,
   Download,
+  HelpCircle,
   Info,
   RotateCcw,
   Square,
@@ -16,7 +17,10 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ColorArea,
   ColorField,
+  ColorPicker,
+  ColorSlider,
   ColorSwatch,
   Link,
   Modal,
@@ -25,6 +29,7 @@ import {
   Tab,
   Tabs,
   TextArea,
+  Tooltip,
   useOverlayState,
 } from "@heroui/react";
 import type { CSSProperties } from "react";
@@ -748,7 +753,7 @@ export function InterviewRecorder() {
                     </div>
                     <div className="mt-3">
                       <p className="mb-2 text-sm font-medium text-[var(--ink-muted)]">Custom color</p>
-                      <ColorField
+                      <ColorPicker
                         value={parseColor(backgroundColor)}
                         onChange={(color) => {
                           if (color) {
@@ -756,11 +761,39 @@ export function InterviewRecorder() {
                           }
                         }}
                       >
-                        <ColorField.Group className="quiet-action flex h-11 items-center gap-2 rounded-medium px-3">
+                        <ColorPicker.Trigger className="quiet-action flex h-11 w-full items-center gap-2 rounded-medium px-3 text-left">
                           <ColorSwatch color={backgroundColor} className="h-6 w-6 rounded-full border border-black/10" />
-                          <ColorField.Input className="min-w-0 flex-1 bg-transparent text-sm font-semibold uppercase text-[var(--foreground)] outline-none" />
-                        </ColorField.Group>
-                      </ColorField>
+                          <span className="flex-1 text-sm font-semibold uppercase text-[var(--foreground)]">
+                            {backgroundColor}
+                          </span>
+                          <span className="text-xs font-semibold text-[var(--accent-strong)]">Pick</span>
+                        </ColorPicker.Trigger>
+                        <ColorPicker.Popover className="studio-card w-72 rounded-large p-4 shadow-xl">
+                          <div className="space-y-4">
+                            <ColorArea colorSpace="hsb" xChannel="saturation" yChannel="brightness" className="h-40 rounded-medium">
+                              <ColorArea.Thumb />
+                            </ColorArea>
+                            <ColorSlider channel="hue" colorSpace="hsb" className="w-full">
+                              <ColorSlider.Track>
+                                <ColorSlider.Thumb />
+                              </ColorSlider.Track>
+                            </ColorSlider>
+                            <ColorField
+                              value={parseColor(backgroundColor)}
+                              onChange={(color) => {
+                                if (color) {
+                                  setBackgroundColor(color.toString("hex"));
+                                }
+                              }}
+                            >
+                              <ColorField.Group className="quiet-action flex h-10 items-center gap-2 rounded-medium px-3">
+                                <ColorSwatch color={backgroundColor} className="h-5 w-5 rounded-full border border-black/10" />
+                                <ColorField.Input className="min-w-0 flex-1 bg-transparent text-sm font-semibold uppercase text-[var(--foreground)] outline-none" />
+                              </ColorField.Group>
+                            </ColorField>
+                          </div>
+                        </ColorPicker.Popover>
+                      </ColorPicker>
                     </div>
                     <label className="mt-3 block text-sm font-medium text-[var(--ink-muted)]">
                       Brightness
@@ -777,6 +810,7 @@ export function InterviewRecorder() {
 
                   <SettingChoice
                     label="Camera quality"
+                    helpText="Standard requests 720p at 24 fps. High requests 1080p at 30 fps when your camera and browser support it."
                     options={[
                       { label: "Standard", value: "standard" },
                       { label: "High", value: "high" },
@@ -1140,18 +1174,39 @@ function TeleprompterPreview({
 
 function SettingChoice({
   label,
+  helpText,
   options,
   value,
   onChange,
 }: {
   label: string;
+  helpText?: string;
   options: { label: string; value: string }[];
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold text-[var(--foreground)]">{label}</p>
+      <div className="mb-2 flex items-center gap-2">
+        <p className="text-sm font-semibold text-[var(--foreground)]">{label}</p>
+        {helpText ? (
+          <Tooltip>
+            <Tooltip.Trigger>
+              <Button
+                type="button"
+                variant="outline"
+                className="grid h-6 w-6 place-items-center rounded-full border-[var(--line)] bg-white/80 p-0 text-[var(--accent-strong)]"
+                aria-label={`${label} help`}
+              >
+                <HelpCircle aria-hidden="true" className="h-3.5 w-3.5" />
+              </Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content className="max-w-xs rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs leading-5 text-white shadow-xl">
+              {helpText}
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+      </div>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <Button
