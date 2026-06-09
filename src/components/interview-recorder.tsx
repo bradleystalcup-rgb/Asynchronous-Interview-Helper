@@ -644,10 +644,10 @@ export function InterviewRecorder() {
             onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
             className="mx-auto w-fit"
           >
-            <Tabs.ListContainer className="rounded-full border border-white/25 bg-white/18 p-1 text-white shadow-lg shadow-blue-950/10 backdrop-blur">
+            <Tabs.ListContainer className="rounded-full bg-[var(--panel)]/90 p-1 shadow-lg shadow-blue-950/10 backdrop-blur">
               <Tabs.List
                 aria-label="Prep sections"
-                className="w-fit *:h-9 *:min-w-24 *:rounded-full *:px-5 *:text-sm *:font-semibold *:text-white/78 *:transition *:data-[selected=true]:text-white"
+                className="w-fit *:h-9 *:min-w-24 *:rounded-full *:px-5 *:text-sm *:font-semibold *:text-[var(--accent-strong)] *:transition *:data-[selected=true]:text-white"
               >
                 {prepSections.map((section) => (
                   <Tab id={section.id} key={section.id}>
@@ -666,8 +666,8 @@ export function InterviewRecorder() {
                 <h2 className="text-xl font-semibold">Video</h2>
               </CardHeader>
               <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
-                <div className="relative overflow-hidden rounded-large bg-black shadow-inner">
-                  <canvas className="aspect-video w-full object-cover" ref={canvasRef} />
+                <div className="relative aspect-video overflow-hidden rounded-large bg-black shadow-inner">
+                  <canvas className="h-full w-full object-cover" ref={canvasRef} />
                   {cameraAccess !== "granted" ? (
                     <div className="absolute inset-0 grid place-items-center bg-[#101827] px-6 text-center text-white">
                       <div className="max-w-sm">
@@ -769,6 +769,27 @@ export function InterviewRecorder() {
                       />
                     </label>
                   </div>
+
+                  <SettingChoice
+                    label="Camera quality"
+                    options={[
+                      { label: "Standard", value: "standard" },
+                      { label: "High", value: "high" },
+                    ]}
+                    value={qualityPreset}
+                    onChange={(value) => void updateQuality(value as QualityPreset)}
+                  />
+
+                  <SettingChoice
+                    label="Camera position"
+                    options={[
+                      { label: "Bottom center", value: "bottom-center" },
+                      { label: "Bottom left", value: "bottom-left" },
+                      { label: "Bottom right", value: "bottom-right" },
+                    ]}
+                    value={cameraPosition}
+                    onChange={(value) => setCameraPosition(value as CameraPosition)}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -778,11 +799,26 @@ export function InterviewRecorder() {
               <Card className="studio-card rounded-large">
               <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">Script</h2>
-                <Tabs selectedKey={promptMode} onSelectionChange={(key) => setPromptMode(key as PromptMode)}>
-                  <Tabs.List aria-label="Prompt mode">
-                    <Tab id="paragraph" key="paragraph">Paragraph</Tab>
-                    <Tab id="autoscroll" key="autoscroll">Autoscroll</Tab>
-                  </Tabs.List>
+                <Tabs
+                  selectedKey={promptMode}
+                  onSelectionChange={(key) => setPromptMode(key as PromptMode)}
+                  className="w-fit"
+                >
+                  <Tabs.ListContainer className="rounded-full bg-[var(--accent-soft)] p-1">
+                    <Tabs.List
+                      aria-label="Prompt mode"
+                      className="w-fit *:h-9 *:min-w-28 *:rounded-full *:px-4 *:text-sm *:font-semibold *:text-[var(--accent-strong)] *:transition *:data-[selected=true]:text-white"
+                    >
+                      <Tab id="paragraph" key="paragraph">
+                        Paragraph
+                        <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
+                      </Tab>
+                      <Tab id="autoscroll" key="autoscroll">
+                        Autoscroll
+                        <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
+                      </Tab>
+                    </Tabs.List>
+                  </Tabs.ListContainer>
                 </Tabs>
               </CardHeader>
               <CardContent className="grid gap-4 lg:grid-cols-2">
@@ -886,28 +922,29 @@ export function InterviewRecorder() {
               <CardHeader>
                 <h2 className="text-xl font-semibold">Misc</h2>
               </CardHeader>
-              <CardContent className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-4">
-                  <SettingChoice
-                    label="Quality"
-                    options={[
-                      { label: "Standard", value: "standard" },
-                      { label: "High", value: "high" },
-                    ]}
-                    value={qualityPreset}
-                    onChange={(value) => void updateQuality(value as QualityPreset)}
-                  />
+              <CardContent className="space-y-5">
+                <div className="rounded-medium border border-[var(--line)] bg-white/75 p-4 text-sm leading-6 text-[var(--ink-muted)]">
+                  <p className="font-semibold text-[var(--foreground)]">Privacy</p>
+                  <p className="mt-1">
+                    Recording happens in your browser. Video and audio stay local unless you choose
+                    to download and share the WebM file.
+                  </p>
                 </div>
-                <SettingChoice
-                  label="Camera preview position"
-                  options={[
-                    { label: "Bottom center", value: "bottom-center" },
-                    { label: "Bottom left", value: "bottom-left" },
-                    { label: "Bottom right", value: "bottom-right" },
-                  ]}
-                  value={cameraPosition}
-                  onChange={(value) => setCameraPosition(value as CameraPosition)}
-                />
+
+                <div className="rounded-medium border border-[var(--line)] bg-white/75 p-4 text-sm leading-6 text-[var(--ink-muted)]">
+                  <p className="font-semibold text-[var(--foreground)]">Attribution</p>
+                  <p className="mt-1">
+                    Built with Next.js, HeroUI, React Aria, Tailwind CSS, and lucide-react icons.
+                  </p>
+                  <Link
+                    href="https://github.com/bradleystalcup-rgb/Asynchronous-Interview-Helper"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex font-semibold text-[var(--accent-strong)] underline-offset-4 hover:underline"
+                  >
+                    See this in GitHub
+                  </Link>
+                </div>
               </CardContent>
             </Card>
             ) : null}
@@ -924,16 +961,6 @@ export function InterviewRecorder() {
         Start recording
       </Button>
 
-      <footer className="fixed bottom-5 left-5 z-30 text-sm font-semibold text-white/78">
-        <Link
-          href="https://github.com/bradleystalcup-rgb/Asynchronous-Interview-Helper"
-          target="_blank"
-          rel="noreferrer"
-          className="text-white/78 underline-offset-4 hover:text-white hover:underline"
-        >
-          See this in GitHub
-        </Link>
-      </footer>
     </main>
   );
 
@@ -962,7 +989,7 @@ export function InterviewRecorder() {
       }}
     >
       <video ref={videoRef} muted playsInline className="hidden" />
-      <canvas ref={canvasRef} className={`absolute w-[min(320px,34vw)] rounded-large border border-white/20 bg-black shadow-2xl ring-1 ring-black/20 ${cameraPreviewClass}`} />
+      <canvas ref={canvasRef} className={`absolute aspect-video w-[min(320px,34vw)] rounded-large border border-white/20 bg-black object-cover shadow-2xl ring-1 ring-black/20 ${cameraPreviewClass}`} />
 
       <div className="absolute left-1/2 top-8 w-[min(920px,calc(100%-2rem))] -translate-x-1/2">
         <div
