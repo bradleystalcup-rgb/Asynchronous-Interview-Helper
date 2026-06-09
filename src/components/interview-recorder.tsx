@@ -644,21 +644,19 @@ export function InterviewRecorder() {
             onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
             className="mx-auto w-fit"
           >
-            <Tabs.List aria-label="Prep sections" className="flex gap-2 rounded-full bg-transparent p-0">
-              {prepSections.map((section) => (
-                <Tab
-                  id={section.id}
-                  key={section.id}
-                  className={`rounded-full border px-5 py-2 text-sm font-semibold transition ${
-                    activeSection === section.id
-                      ? "border-[var(--accent-strong)] bg-[var(--accent)] text-white shadow-lg shadow-blue-900/20"
-                      : "border-white/20 bg-white/20 text-white hover:bg-white/30"
-                  }`}
-                >
-                  {section.label}
-                </Tab>
-              ))}
-            </Tabs.List>
+            <Tabs.ListContainer className="rounded-full border border-white/25 bg-white/18 p-1 text-white shadow-lg shadow-blue-950/10 backdrop-blur">
+              <Tabs.List
+                aria-label="Prep sections"
+                className="w-fit *:h-9 *:min-w-24 *:rounded-full *:px-5 *:text-sm *:font-semibold *:text-white/78 *:transition *:data-[selected=true]:text-white"
+              >
+                {prepSections.map((section) => (
+                  <Tab id={section.id} key={section.id}>
+                    {section.label}
+                    <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
+                  </Tab>
+                ))}
+              </Tabs.List>
+            </Tabs.ListContainer>
           </Tabs>
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-2">
