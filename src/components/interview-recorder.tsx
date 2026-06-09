@@ -18,11 +18,13 @@ import {
   ColorField,
   ColorSwatch,
   Link,
+  Modal,
   parseColor,
   Slider,
   Tab,
   Tabs,
   TextArea,
+  useOverlayState,
 } from "@heroui/react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -159,6 +161,7 @@ export function InterviewRecorder() {
   const [countdownValue, setCountdownValue] = useState(3);
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const introModal = useOverlayState({ defaultOpen: true });
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -169,6 +172,7 @@ export function InterviewRecorder() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const elapsedTimerRef = useRef<number | null>(null);
+  const shouldStartRecordingRef = useRef(false);
 
   const paragraphs = useMemo(() => splitScriptIntoParagraphs(script), [script]);
   const selectedTone = tones.find((tone) => tone.id === selectedToneId) ?? tones[0];
@@ -376,6 +380,18 @@ export function InterviewRecorder() {
   );
 
   useEffect(() => {
+    const stream = mediaStreamRef.current;
+    const video = videoRef.current;
+
+    if (!stream || !video || video.srcObject === stream) {
+      return;
+    }
+
+    video.srcObject = stream;
+    void video.play();
+  }, [appMode]);
+
+  useEffect(() => {
     return () => {
       stopDrawing();
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -400,10 +416,10 @@ export function InterviewRecorder() {
   }, [appMode, drawToCanvas, stopDrawing]);
 
   useEffect(() => {
-    if (appMode === "prep" && !mediaStreamRef.current) {
+    if (appMode === "prep" && !introModal.isOpen && !mediaStreamRef.current) {
       void startCamera();
     }
-  }, [appMode, startCamera]);
+  }, [appMode, introModal.isOpen, startCamera]);
 
   useEffect(() => {
     if (appMode !== "record") {
@@ -442,10 +458,20 @@ export function InterviewRecorder() {
       }
 
       window.clearInterval(timer);
-      void startRecording();
+      shouldStartRecordingRef.current = true;
+      setAppMode("record");
     }, 1000);
 
     return () => window.clearInterval(timer);
+  }, [appMode]);
+
+  useEffect(() => {
+    if (appMode !== "record" || !shouldStartRecordingRef.current) {
+      return;
+    }
+
+    shouldStartRecordingRef.current = false;
+    void startRecording();
   }, [appMode, startRecording]);
 
   useEffect(() => {
@@ -551,6 +577,54 @@ export function InterviewRecorder() {
     >
       <video ref={videoRef} muted playsInline className="hidden" />
 
+      <Modal state={introModal}>
+        <Modal.Backdrop className="bg-black/55 backdrop-blur-sm">
+          <Modal.Container placement="center" size="lg">
+            <Modal.Dialog className="studio-card rounded-large p-0 text-[var(--foreground)]">
+              <Modal.Header className="border-b border-[var(--line)] px-6 py-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                    Interview recording helper
+                  </p>
+                  <Modal.Heading className="mt-1 text-2xl font-semibold">
+                    Rehearse, record, and download a clean response.
+                  </Modal.Heading>
+                </div>
+              </Modal.Header>
+              <Modal.Body className="space-y-4 px-6 py-5 text-sm leading-6 text-[var(--ink-muted)]">
+                <p>
+                  This app gives you a local teleprompter, camera preview, screen-lighting controls,
+                  timer options, and a simple recording flow for asynchronous job interview answers.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-medium border border-[var(--line)] bg-white/80 p-3">
+                    <p className="font-semibold text-[var(--foreground)]">1. Prep</p>
+                    <p className="mt-1">Choose video, script, timer, and quality settings.</p>
+                  </div>
+                  <div className="rounded-medium border border-[var(--line)] bg-white/80 p-3">
+                    <p className="font-semibold text-[var(--foreground)]">2. Record</p>
+                    <p className="mt-1">Read from the top script while the camera stays in view.</p>
+                  </div>
+                  <div className="rounded-medium border border-[var(--line)] bg-white/80 p-3">
+                    <p className="font-semibold text-[var(--foreground)]">3. Download</p>
+                    <p className="mt-1">Save a local WebM file. Nothing is uploaded.</p>
+                  </div>
+                </div>
+              </Modal.Body>
+              <Modal.Footer className="flex justify-end border-t border-[var(--line)] px-6 py-4">
+                <Button
+                  type="button"
+                  onClick={introModal.close}
+                  className="primary-action rounded-medium px-5 py-3 font-semibold"
+                >
+                  Start setup
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
       <div className="studio-topbar absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 text-white">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">Prep mode</p>
@@ -574,7 +648,7 @@ export function InterviewRecorder() {
         </div>
       ) : null}
 
-      <div className="h-full px-4 pb-24 pt-24">
+      <div className="h-full px-4 pb-6 pt-24">
         <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4">
           <Tabs
             selectedKey={activeSection}
@@ -821,7 +895,7 @@ export function InterviewRecorder() {
       <Button
         type="button"
         onClick={startCountdown}
-        className="danger-action fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-full px-6 py-4 text-base font-semibold transition hover:scale-[1.01]"
+        className="danger-action fixed bottom-8 right-8 z-50 inline-flex items-center gap-2 rounded-full px-7 py-4 text-base font-semibold transition hover:scale-[1.01]"
       >
         <Video aria-hidden="true" className="h-5 w-5" />
         Start recording
