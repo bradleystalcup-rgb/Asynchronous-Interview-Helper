@@ -1,0 +1,12 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
+name = "asynchronous-interview-helper"
+compatibility_date = "2026-06-10"
+
+routes = [
+  { pattern = "interview-help.evidentco.com", custom_domain = true },
+]
+
+[assets]
+directory = "./out"
+not_found_handling = "single-page-application"
