@@ -4,7 +4,7 @@ name = "asynchronous-interview-helper"
 compatibility_date = "2026-06-10"
 
 routes = [
-  { pattern = "interview-help.evidentco.com", custom_domain = true },
+  { pattern = "interview-help.bradstalcup.com", custom_domain = true },
 ]
 
 [assets]
