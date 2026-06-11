@@ -93,6 +93,190 @@ input:focus-visible {
   backdrop-filter: blur(20px);
 }
 
+@layer components {
+  .tabs__list-container,
+  .tabs__list,
+  .tabs__tab {
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .tabs__tab:focus,
+  .tabs__tab:focus-visible,
+  .tabs__tab[data-focus-visible] {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .timer-duration-radio__control {
+    position: relative;
+    display: block !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    margin-top: 2px;
+    padding: 0 !important;
+    border: 1.5px solid var(--accent) !important;
+    border-radius: 9999px !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  .timer-duration-radio__control::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    content: "";
+    width: 12px !important;
+    height: 12px !important;
+    border-radius: 9999px !important;
+    background: var(--accent) !important;
+    opacity: 0;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .timer-duration-radio[data-selected="true"] .timer-duration-radio__control::after {
+    opacity: 1;
+  }
+
+  .color-swatch-picker {
+    @apply flex flex-wrap gap-3;
+  }
+
+  .color-swatch-picker__item {
+    position: relative;
+    display: flex;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    padding: 0;
+    border-radius: 9999px;
+    line-height: 0;
+    transform: none !important;
+  }
+
+  .color-swatch-picker__swatch {
+    display: block;
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    border: 1px solid rgba(24, 32, 44, 0.18);
+    border-radius: 9999px;
+    transform: none !important;
+  }
+
+  .mono-swatch-visual {
+    border: 0;
+    background: linear-gradient(135deg, #f8fafc 0 49.5%, #d6dde8 49.5% 50.5%, #3b4250 50.5% 100%);
+    box-shadow: inset 0 0 0 1px rgba(24, 32, 44, 0.16);
+  }
+
+  .color-swatch-picker__item[data-selected="true"],
+  .color-swatch-picker__item[data-selection-mode],
+  .color-swatch-picker__item[data-focus-visible] {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    flex-basis: 40px !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  .color-swatch-picker__item[data-selected="true"] .color-swatch-picker__swatch,
+  .color-swatch-picker__item[data-selected="true"] [data-slot="color-swatch-picker-swatch"] {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    flex-basis: 40px !important;
+    transform: none !important;
+  }
+
+  .color-swatch-picker__indicator {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    pointer-events: none;
+    border-radius: 9999px;
+    color: white;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  }
+
+  .color-swatch-picker__indicator svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1;
+  }
+
+  .custom-swatch-trigger {
+    position: relative;
+    display: flex !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    flex: 0 0 40px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible;
+    padding: 0 !important;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    line-height: 0;
+    appearance: none;
+  }
+
+  .custom-swatch-trigger [data-slot="color-swatch"] {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    flex: 0 0 40px !important;
+    border: 1px solid rgba(24, 32, 44, 0.18) !important;
+    border-radius: 9999px !important;
+  }
+
+  .custom-swatch-check {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    pointer-events: none;
+    border-radius: 9999px;
+    color: white;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  }
+
+  .custom-swatch-check svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1;
+  }
+}
+
 .tone-natural {
   filter: none;
 }

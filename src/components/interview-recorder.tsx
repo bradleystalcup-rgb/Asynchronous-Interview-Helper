@@ -25,17 +25,19 @@ import {
   Link,
   ListBox,
   Modal,
+  NumberField,
   parseColor,
+  Radio,
+  RadioGroup,
   Select,
   Slider,
   Tab,
   Tabs,
   TextArea,
-  Tooltip,
   useOverlayState,
 } from "@heroui/react";
 import type { ColorChannel, ColorSpace } from "@heroui/react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { recordingFilename, splitScriptIntoParagraphs } from "@/lib/teleprompter";
 
@@ -46,6 +48,8 @@ type TimerProgressStyle = "circle" | "bar";
 type QualityPreset = "standard" | "high";
 type CameraPosition = "bottom-center" | "bottom-left" | "bottom-right";
 type CameraAccess = "idle" | "requesting" | "granted" | "denied" | "unsupported";
+type BackgroundSelection = "preset" | "custom";
+type DurationMode = "preset" | "custom";
 
 type Tone = {
   id: string;
@@ -77,18 +81,18 @@ const tones: Tone[] = [
     swatchColor: "#06b6d4",
   },
   {
-    id: "mono",
-    label: "Mono",
-    filter: "grayscale(1) contrast(1.08) brightness(1.04)",
-    className: "tone-mono",
-    swatchColor: "#687083",
-  },
-  {
     id: "studio",
     label: "Studio",
     filter: "saturate(1.08) contrast(1.08) brightness(0.98) hue-rotate(-5deg)",
     className: "tone-studio",
     swatchColor: "#46676c",
+  },
+  {
+    id: "mono",
+    label: "Mono",
+    filter: "grayscale(1) contrast(1.08) brightness(1.04)",
+    className: "tone-mono",
+    swatchColor: "#687083",
   },
 ];
 
@@ -198,12 +202,15 @@ export function InterviewRecorder() {
   const [customToneColor, setCustomToneColor] = useState("#84cc16");
   const [customToneColorSpace, setCustomToneColorSpace] = useState<ColorSpace>("hsl");
   const [backgroundColor, setBackgroundColor] = useState("#1f2328");
+  const [customBackgroundColor, setCustomBackgroundColor] = useState("#84cc16");
   const [backgroundColorSpace, setBackgroundColorSpace] = useState<ColorSpace>("hsl");
+  const [backgroundSelection, setBackgroundSelection] = useState<BackgroundSelection>("preset");
   const [backgroundBrightness, setBackgroundBrightness] = useState(100);
   const [timerMode, setTimerMode] = useState<TimerMode>("elapsed");
   const [timerVisible, setTimerVisible] = useState(true);
   const [timerProgressStyle, setTimerProgressStyle] = useState<TimerProgressStyle>("circle");
   const [timerDuration, setTimerDuration] = useState(120);
+  const [durationMode, setDurationMode] = useState<DurationMode>("preset");
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>("standard");
   const [cameraPosition, setCameraPosition] = useState<CameraPosition>("bottom-center");
   const [activeSection, setActiveSection] = useState<PrepSection["id"]>("video");
@@ -239,7 +246,8 @@ export function InterviewRecorder() {
   }, [customToneColor]);
   const filterTones = useMemo(() => [...tones, customTone], [customTone]);
   const selectedTone = filterTones.find((tone) => tone.id === selectedToneId) ?? tones[0];
-  const lightingBackground = colorWithBrightness(backgroundColor, backgroundBrightness);
+  const activeBackgroundColor = backgroundSelection === "custom" ? customBackgroundColor : backgroundColor;
+  const lightingBackground = colorWithBrightness(activeBackgroundColor, backgroundBrightness);
   const timerRemaining = timerDuration - recordElapsedSeconds;
   const timerDisplaySeconds = timerMode === "countdown" ? Math.abs(timerRemaining) : recordElapsedSeconds;
   const timerProgress =
@@ -704,32 +712,39 @@ export function InterviewRecorder() {
 
       <div className="h-full px-4 pb-16 pt-5">
         <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4">
-          <Tabs
-            selectedKey={activeSection}
-            onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
-            className="mx-auto w-fit"
-          >
-            <Tabs.ListContainer className="rounded-full bg-[var(--panel)]/90 p-1 shadow-lg shadow-blue-950/10 backdrop-blur">
-              <Tabs.List
-                aria-label="Prep sections"
-                className="w-fit *:h-9 *:min-w-24 *:rounded-full *:px-5 *:text-sm *:font-semibold *:text-[var(--accent-strong)] *:transition *:data-[selected=true]:text-white"
-              >
-                {prepSections.map((section) => (
-                  <Tab id={section.id} key={section.id}>
-                    {section.label}
-                    <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
-                  </Tab>
-                ))}
-              </Tabs.List>
-            </Tabs.ListContainer>
-          </Tabs>
-
           <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-            {activeSection === "video" ? (
-              <Card className="studio-card rounded-large">
-              <CardHeader>
-                <h2 className="text-xl font-semibold">Video</h2>
+            <Card className="studio-card rounded-large">
+              <CardHeader className="relative justify-center border-b border-[var(--line)] px-5 py-4">
+                <Tabs
+                  selectedKey={activeSection}
+                  onSelectionChange={(key) => setActiveSection(key as PrepSection["id"])}
+                  className="w-fit"
+                >
+                  <Tabs.ListContainer className="rounded-full border-0 bg-[var(--panel-muted)] p-1 shadow-none outline-none ring-0">
+                    <Tabs.List
+                      aria-label="Prep sections"
+                      className="w-fit border-0 shadow-none outline-none ring-0 *:h-9 *:min-w-24 *:rounded-full *:border-0 *:px-5 *:text-sm *:font-semibold *:text-[var(--accent-strong)] *:shadow-none *:outline-none *:ring-0 *:transition *:data-[selected=true]:text-white"
+                    >
+                      {prepSections.map((section) => (
+                        <Tab id={section.id} key={section.id}>
+                          {section.label}
+                          <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
+                        </Tab>
+                      ))}
+                    </Tabs.List>
+                  </Tabs.ListContainer>
+                </Tabs>
+                <Button
+                  type="button"
+                  onClick={startCountdown}
+                  className="danger-action absolute right-5 top-1/2 hidden -translate-y-1/2 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition hover:scale-[1.01] md:inline-flex"
+                >
+                  <Video aria-hidden="true" className="h-4 w-4" />
+                  Start recording
+                </Button>
               </CardHeader>
+
+            {activeSection === "video" ? (
               <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
                 <div className="relative aspect-video overflow-hidden rounded-large bg-black shadow-inner">
                   <canvas className="h-full w-full object-cover" ref={canvasRef} />
@@ -765,133 +780,132 @@ export function InterviewRecorder() {
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-sm font-semibold">Camera filter</h3>
-                    <ColorSwatchPicker
-                      aria-label="Camera filter"
-                      value={selectedTone.swatchColor}
-                      onChange={(color) => {
-                        const selectedColor = color.toString("hex").toLowerCase();
-                        const nextTone = filterTones.find((tone) => tone.swatchColor.toLowerCase() === selectedColor);
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      <ColorSwatchPicker
+                        aria-label="Camera filter"
+                        value={selectedToneId === "custom" ? "#00000000" : selectedTone.swatchColor}
+                        onChange={(color) => {
+                          const selectedColor = color.toString("hex").toLowerCase();
+                          const nextTone = tones.find((tone) => tone.swatchColor.toLowerCase() === selectedColor);
 
-                        if (nextTone) {
-                          setSelectedToneId(nextTone.id);
-                        }
-                      }}
-                      className="mt-3 flex flex-wrap gap-3"
-                    >
-                      {filterTones.map((tone) => (
-                        <ColorSwatchPicker.Item
-                          key={tone.id}
-                          color={tone.swatchColor}
-                          aria-label={tone.label}
-                          onPress={() => setSelectedToneId(tone.id)}
-                          className="grid h-11 w-11 place-items-center rounded-full bg-white/75 p-1 shadow-sm transition data-[selected=true]:bg-[var(--accent-soft)] data-[selected=true]:shadow-md"
+                          if (nextTone) {
+                            setSelectedToneId(nextTone.id);
+                          }
+                        }}
+                      >
+                        {tones.map((tone) => (
+                          <ColorSwatchPicker.Item
+                            key={tone.id}
+                            color={tone.swatchColor}
+                            aria-label={tone.label}
+                            onPress={() => setSelectedToneId(tone.id)}
+                            className="group"
+                          >
+                            <SwatchTooltipLabel label={tone.label} />
+                            {tone.id === "mono" ? (
+                              <span className="color-swatch-picker__swatch mono-swatch-visual" />
+                            ) : (
+                              <ColorSwatchPicker.Swatch />
+                            )}
+                            <ColorSwatchPicker.Indicator />
+                          </ColorSwatchPicker.Item>
+                        ))}
+                      </ColorSwatchPicker>
+
+                      <ColorPicker
+                        value={parseColor(customToneColor)}
+                        onChange={(color) => {
+                          if (color) {
+                            setCustomToneColor(color.toString("hex"));
+                            setSelectedToneId("custom");
+                          }
+                        }}
+                      >
+                        <ColorPicker.Trigger
+                          className={`custom-swatch-trigger group ${selectedToneId === "custom" ? "is-selected" : ""}`}
+                          aria-label="Custom camera filter"
+                          onPress={() => setSelectedToneId("custom")}
                         >
-                          {tone.id === "custom" ? (
-                            <ColorPicker
-                              value={parseColor(customToneColor)}
-                              onChange={(color) => {
-                                if (color) {
-                                  setCustomToneColor(color.toString("hex"));
-                                  setSelectedToneId("custom");
-                                }
-                              }}
-                            >
-                              <Tooltip>
-                                <Tooltip.Trigger>
-                                  <ColorPicker.Trigger className="relative grid h-9 w-9 place-items-center rounded-full">
-                                    <ColorSwatch color={customToneColor} className="h-8 w-8 rounded-full border border-black/10" />
-                                    <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
-                                  </ColorPicker.Trigger>
-                                </Tooltip.Trigger>
-                                <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
-                                  Custom
-                                </Tooltip.Content>
-                              </Tooltip>
-                              <ColorPicker.Popover className="studio-card flex w-72 flex-col gap-3 rounded-large px-3 py-4 shadow-xl">
-                                <ColorSpaceSelect colorSpace={customToneColorSpace} onChange={setCustomToneColorSpace} />
-                                <ColorSliderControls colorSpace={customToneColorSpace} />
-                              </ColorPicker.Popover>
-                            </ColorPicker>
-                          ) : (
-                            <Tooltip>
-                              <Tooltip.Trigger>
-                                <span className="relative grid h-9 w-9 place-items-center rounded-full">
-                                  <ColorSwatchPicker.Swatch className={`h-8 w-8 rounded-full border border-black/10 ${tone.className}`} />
-                                  <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
-                                </span>
-                              </Tooltip.Trigger>
-                              <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
-                                {tone.label}
-                              </Tooltip.Content>
-                            </Tooltip>
-                          )}
-                        </ColorSwatchPicker.Item>
-                      ))}
-                    </ColorSwatchPicker>
+                          <SwatchTooltipLabel label="Custom" />
+                          <ColorSwatch color={customToneColor} />
+                          {selectedToneId === "custom" ? (
+                            <CustomSwatchCheck />
+                          ) : null}
+                        </ColorPicker.Trigger>
+                        <ColorPicker.Popover className="studio-card flex w-72 flex-col gap-3 rounded-large px-3 py-4 shadow-xl">
+                          <ColorSpaceSelect colorSpace={customToneColorSpace} onChange={setCustomToneColorSpace} />
+                          <ColorSliderControls colorSpace={customToneColorSpace} />
+                        </ColorPicker.Popover>
+                      </ColorPicker>
+                    </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold">Screen lighting</h3>
-                    <ColorSwatchPicker
-                      aria-label="Screen lighting"
-                      value={backgroundColor}
-                      onChange={(color) => setBackgroundColor(color.toString("hex"))}
-                      className="mt-3 flex flex-wrap gap-3"
-                    >
-                      {backgroundPresets.map((preset) => (
-                        <ColorSwatchPicker.Item
-                          key={preset.label}
-                          color={preset.color}
-                          aria-label={preset.label}
-                          onPress={() => setBackgroundColor(preset.color)}
-                          className="grid h-11 w-11 place-items-center rounded-full bg-white/75 p-1 shadow-sm transition data-[selected=true]:bg-[var(--accent-soft)] data-[selected=true]:shadow-md"
-                        >
-                          <Tooltip>
-                            <Tooltip.Trigger>
-                              <span className="relative grid h-9 w-9 place-items-center rounded-full">
-                                <ColorSwatchPicker.Swatch className="h-8 w-8 rounded-full border border-black/10" />
-                                <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
-                              </span>
-                            </Tooltip.Trigger>
-                            <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
-                              {preset.label}
-                            </Tooltip.Content>
-                          </Tooltip>
-                        </ColorSwatchPicker.Item>
-                      ))}
-                      <ColorSwatchPicker.Item
-                        color={backgroundColor}
-                        aria-label="Custom"
-                        className="grid h-11 w-11 place-items-center rounded-full bg-white/75 p-1 shadow-sm transition data-[selected=true]:bg-[var(--accent-soft)] data-[selected=true]:shadow-md"
+                    <h3 className="text-sm font-semibold">Background color</h3>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      <ColorSwatchPicker
+                        aria-label="Screen lighting"
+                        value={backgroundSelection === "custom" ? "#00000000" : activeBackgroundColor}
+                        onChange={(color) => {
+                          const selectedColor = color.toString("hex");
+                          const selectedPreset = backgroundPresets.find(
+                            (preset) => preset.color.toLowerCase() === selectedColor.toLowerCase(),
+                          );
+
+                          if (selectedPreset) {
+                            setBackgroundColor(selectedPreset.color);
+                            setBackgroundSelection("preset");
+                            return;
+                          }
+
+                          setCustomBackgroundColor(selectedColor);
+                          setBackgroundSelection("custom");
+                        }}
                       >
-                        <ColorPicker
-                          value={parseColor(backgroundColor)}
-                          onChange={(color) => {
-                            if (color) {
-                              setBackgroundColor(color.toString("hex"));
-                            }
-                          }}
+                        {backgroundPresets.map((preset) => (
+                          <ColorSwatchPicker.Item
+                            key={preset.label}
+                            color={preset.color}
+                            aria-label={preset.label}
+                            onPress={() => {
+                              setBackgroundColor(preset.color);
+                              setBackgroundSelection("preset");
+                            }}
+                            className="group"
+                          >
+                            <SwatchTooltipLabel label={preset.label} />
+                            <ColorSwatchPicker.Swatch />
+                            <ColorSwatchPicker.Indicator />
+                          </ColorSwatchPicker.Item>
+                        ))}
+                      </ColorSwatchPicker>
+                      <ColorPicker
+                        value={parseColor(customBackgroundColor)}
+                        onChange={(color) => {
+                          if (color) {
+                            setCustomBackgroundColor(color.toString("hex"));
+                            setBackgroundSelection("custom");
+                          }
+                        }}
+                      >
+                        <ColorPicker.Trigger
+                          className={`custom-swatch-trigger group ${backgroundSelection === "custom" ? "is-selected" : ""}`}
+                          aria-label="Custom screen lighting"
+                          onPress={() => setBackgroundSelection("custom")}
                         >
-                          <Tooltip>
-                            <Tooltip.Trigger>
-                              <ColorPicker.Trigger className="relative grid h-9 w-9 place-items-center rounded-full">
-                                <ColorSwatch color={backgroundColor} className="h-8 w-8 rounded-full border border-black/10" />
-                                <ColorSwatchPicker.Indicator className="absolute inset-0 grid place-items-center rounded-full text-white drop-shadow" />
-                              </ColorPicker.Trigger>
-                            </Tooltip.Trigger>
-                            <Tooltip.Content placement="top" className="rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-semibold text-white shadow-xl">
-                              Custom
-                            </Tooltip.Content>
-                          </Tooltip>
-                          <ColorPicker.Popover className="studio-card flex w-72 flex-col gap-3 rounded-large px-3 py-4 shadow-xl">
-                            <ColorSpaceSelect colorSpace={backgroundColorSpace} onChange={setBackgroundColorSpace} />
-                            <ColorSliderControls colorSpace={backgroundColorSpace} />
-                          </ColorPicker.Popover>
-                        </ColorPicker>
-                      </ColorSwatchPicker.Item>
-                    </ColorSwatchPicker>
-                    <label className="mt-3 block text-sm font-medium text-[var(--ink-muted)]">
-                      Brightness
+                          <SwatchTooltipLabel label="Custom" />
+                          <ColorSwatch color={customBackgroundColor} />
+                          {backgroundSelection === "custom" ? (
+                            <CustomSwatchCheck />
+                          ) : null}
+                        </ColorPicker.Trigger>
+                        <ColorPicker.Popover className="studio-card flex w-72 flex-col gap-3 rounded-large px-3 py-4 shadow-xl">
+                          <ColorSpaceSelect colorSpace={backgroundColorSpace} onChange={setBackgroundColorSpace} />
+                          <ColorSliderControls colorSpace={backgroundColorSpace} />
+                        </ColorPicker.Popover>
+                      </ColorPicker>
+                    </div>
+                    <label className="mt-3 block">
                       <Slider
                         aria-label="Background brightness"
                         minValue={35}
@@ -917,8 +931,8 @@ export function InterviewRecorder() {
                   <SettingChoice
                     label="Camera position"
                     options={[
-                      { label: "Bottom center", value: "bottom-center" },
                       { label: "Bottom left", value: "bottom-left" },
+                      { label: "Bottom center", value: "bottom-center" },
                       { label: "Bottom right", value: "bottom-right" },
                     ]}
                     value={cameraPosition}
@@ -926,82 +940,76 @@ export function InterviewRecorder() {
                   />
                 </div>
               </CardContent>
-            </Card>
             ) : null}
 
             {activeSection === "script" ? (
-              <Card className="studio-card rounded-large">
-              <CardHeader className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold">Script</h2>
-                <Tabs
-                  selectedKey={promptMode}
-                  onSelectionChange={(key) => setPromptMode(key as PromptMode)}
-                  className="w-fit"
-                >
-                  <Tabs.ListContainer className="rounded-full bg-[var(--accent-soft)] p-1">
-                    <Tabs.List
-                      aria-label="Prompt mode"
-                      className="w-fit *:h-9 *:min-w-28 *:rounded-full *:px-4 *:text-sm *:font-semibold *:text-[var(--accent-strong)] *:transition *:data-[selected=true]:text-white"
-                    >
-                      <Tab id="paragraph" key="paragraph">
-                        Paragraph
-                        <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
-                      </Tab>
-                      <Tab id="autoscroll" key="autoscroll">
-                        Autoscroll
-                        <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
-                      </Tab>
-                    </Tabs.List>
-                  </Tabs.ListContainer>
-                </Tabs>
-              </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-2">
-                <TextArea
-                  value={script}
-                  onChange={(event) => handleScriptChange(event.target.value)}
-                  className="min-h-[280px] w-full resize-y rounded-medium border border-[var(--line)] bg-white/95 p-3 text-sm leading-6 shadow-inner"
-                  aria-label="Script"
-                />
-                <div>
-                  {promptMode === "autoscroll" ? (
-                    <label className="mb-3 block text-sm font-medium text-[var(--ink-muted)]">
-                      Autoscroll speed
-                      <Slider
-                        aria-label="Autoscroll speed"
-                        minValue={12}
-                        maxValue={110}
-                        value={autoscrollSpeed}
-                        onChange={(value) => setAutoscrollSpeed(Array.isArray(value) ? value[0] : value)}
-                        className="mt-2"
-                      />
-                    </label>
-                  ) : (
-                    <div className="mb-3 flex gap-2">
-                      <Button type="button" onClick={retreatParagraph} variant="outline" size="sm">
-                        <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-                        Back
-                      </Button>
-                      <Button type="button" onClick={advanceParagraph} variant="outline" size="sm">
-                        Next
-                        <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <TeleprompterPreview
-                    paragraphs={paragraphs}
-                    promptMode={promptMode}
-                    activeParagraph={activeParagraph}
+              <CardContent className="space-y-4">
+                <div className="flex justify-end">
+                  <Tabs
+                    selectedKey={promptMode}
+                    onSelectionChange={(key) => setPromptMode(key as PromptMode)}
+                    className="w-fit"
+                  >
+                    <Tabs.ListContainer className="rounded-full border-0 bg-[var(--panel-muted)] p-1 shadow-none outline-none ring-0">
+                      <Tabs.List
+                        aria-label="Prompt mode"
+                        className="w-fit border-0 shadow-none outline-none ring-0 *:h-9 *:min-w-28 *:rounded-full *:border-0 *:px-4 *:text-sm *:font-semibold *:text-[var(--accent-strong)] *:shadow-none *:outline-none *:ring-0 *:transition *:data-[selected=true]:text-white"
+                      >
+                        <Tab id="paragraph" key="paragraph">
+                          Paragraph
+                          <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
+                        </Tab>
+                        <Tab id="autoscroll" key="autoscroll">
+                          Autoscroll
+                          <Tabs.Indicator className="rounded-full bg-[var(--accent)] shadow-md shadow-blue-900/20" />
+                        </Tab>
+                      </Tabs.List>
+                    </Tabs.ListContainer>
+                  </Tabs>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <TextArea
+                    value={script}
+                    onChange={(event) => handleScriptChange(event.target.value)}
+                    className="min-h-[280px] w-full resize-y rounded-medium border border-[var(--line)] bg-white/95 p-3 text-sm leading-6 shadow-inner"
+                    aria-label="Script"
                   />
+                  <div>
+                    {promptMode === "autoscroll" ? (
+                      <label className="mb-3 block text-sm font-medium text-[var(--ink-muted)]">
+                        Autoscroll speed
+                        <Slider
+                          aria-label="Autoscroll speed"
+                          minValue={12}
+                          maxValue={110}
+                          value={autoscrollSpeed}
+                          onChange={(value) => setAutoscrollSpeed(Array.isArray(value) ? value[0] : value)}
+                          className="mt-2"
+                        />
+                      </label>
+                    ) : (
+                      <div className="mb-3 flex gap-2">
+                        <Button type="button" onClick={retreatParagraph} variant="outline" size="sm">
+                          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                          Back
+                        </Button>
+                        <Button type="button" onClick={advanceParagraph} variant="outline" size="sm">
+                          Next
+                          <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    <TeleprompterPreview
+                      paragraphs={paragraphs}
+                      promptMode={promptMode}
+                      activeParagraph={activeParagraph}
+                    />
+                  </div>
                 </div>
               </CardContent>
-            </Card>
             ) : null}
 
             {activeSection === "timer" ? (
-              <Card className="studio-card rounded-large">
-              <CardHeader>
-                <h2 className="text-xl font-semibold">Timer</h2>
-              </CardHeader>
               <CardContent className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-4">
                   <SettingChoice
@@ -1015,6 +1023,7 @@ export function InterviewRecorder() {
                   />
                   <SettingChoice
                     label="Timer mode"
+                    isDisabled={!timerVisible}
                     options={[
                       { label: "Elapsed", value: "elapsed" },
                       { label: "Countdown", value: "countdown" },
@@ -1024,6 +1033,7 @@ export function InterviewRecorder() {
                   />
                   <SettingChoice
                     label="Progress style"
+                    isDisabled={!timerVisible}
                     options={[
                       { label: "Circle", value: "circle" },
                       { label: "Bar", value: "bar" },
@@ -1032,30 +1042,79 @@ export function InterviewRecorder() {
                     onChange={(value) => setTimerProgressStyle(value as TimerProgressStyle)}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--ink-muted)]">
-                    Countdown length
-                    <Slider
-                      aria-label="Countdown length"
-                      minValue={30}
-                      maxValue={300}
-                      step={30}
-                      value={timerDuration}
-                      onChange={(value) => setTimerDuration(Array.isArray(value) ? value[0] : value)}
-                      className="mt-3"
-                    />
-                  </label>
-                  <p className="mt-2 text-sm font-semibold">{formatTime(timerDuration)}</p>
+                <div className="space-y-4">
+                  <RadioGroup
+                    aria-label="Countdown length type"
+                    isDisabled={!timerVisible}
+                    value={durationMode}
+                    onChange={(value) => setDurationMode(value as DurationMode)}
+                    className={`space-y-3 ${timerVisible ? "" : "opacity-45"}`}
+                  >
+                    <TimerDurationRadio value="preset" title="Preset time">
+                      Use the slider for common response lengths.
+                    </TimerDurationRadio>
+                    <TimerDurationRadio value="custom" title="Custom time">
+                      time in seconds
+                    </TimerDurationRadio>
+                  </RadioGroup>
+
+                  {durationMode === "preset" ? (
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-[var(--ink-muted)]">Countdown length</p>
+                        <p className="text-sm font-semibold text-[var(--foreground)]">{formatTime(timerDuration)}</p>
+                      </div>
+                      <Slider
+                        aria-label="Countdown length"
+                        isDisabled={!timerVisible}
+                        minValue={30}
+                        maxValue={300}
+                        step={30}
+                        value={timerDuration}
+                        onChange={(value) => setTimerDuration(Array.isArray(value) ? value[0] : value)}
+                        className="mt-3 gap-2"
+                      >
+                        <Slider.Track className="relative h-2 rounded-full bg-[var(--accent-soft)]">
+                          <Slider.Fill className="absolute h-2 rounded-full bg-[var(--accent)]" />
+                          <Slider.Thumb className="top-1/2 h-5 w-5 rounded-full border-2 border-white bg-[var(--accent)] shadow-md outline-none ring-[var(--accent)] transition focus-visible:ring-2" />
+                        </Slider.Track>
+                      </Slider>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-end gap-3">
+                      <NumberField
+                        aria-label="Custom countdown length in seconds"
+                        isDisabled={!timerVisible}
+                        minValue={10}
+                        maxValue={900}
+                        step={5}
+                        value={timerDuration}
+                        onChange={(value) => {
+                          if (Number.isFinite(value)) {
+                            setTimerDuration(Math.min(Math.max(value, 10), 900));
+                          }
+                        }}
+                        className="w-44"
+                      >
+                        <Label className="mb-2 block text-sm font-medium text-[var(--ink-muted)]">
+                          Custom time
+                        </Label>
+                        <NumberField.Group className="quiet-action flex h-11 items-center rounded-medium">
+                          <NumberField.DecrementButton className="grid h-11 w-10 place-items-center rounded-l-medium text-[var(--accent-strong)]" />
+                          <NumberField.Input className="min-w-0 flex-1 bg-transparent text-center text-sm font-semibold text-[var(--foreground)] outline-none" />
+                          <NumberField.IncrementButton className="grid h-11 w-10 place-items-center rounded-r-medium text-[var(--accent-strong)]" />
+                        </NumberField.Group>
+                      </NumberField>
+                      <p className="pb-2 text-sm font-semibold text-[var(--foreground)]">
+                        {formatTime(timerDuration)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
-            </Card>
             ) : null}
 
             {activeSection === "misc" ? (
-              <Card className="studio-card rounded-large">
-              <CardHeader>
-                <h2 className="text-xl font-semibold">Misc</h2>
-              </CardHeader>
               <CardContent className="space-y-5">
                 <div className="rounded-medium border border-[var(--line)] bg-white/75 p-4 text-sm leading-6 text-[var(--ink-muted)]">
                   <p className="font-semibold text-[var(--foreground)]">Privacy</p>
@@ -1066,22 +1125,33 @@ export function InterviewRecorder() {
                 </div>
 
                 <div className="rounded-medium border border-[var(--line)] bg-white/75 p-4 text-sm leading-6 text-[var(--ink-muted)]">
-                  <p className="font-semibold text-[var(--foreground)]">Attribution</p>
+                  <p className="font-semibold text-[var(--foreground)]">Open source</p>
                   <p className="mt-1">
-                    Built with Next.js, HeroUI, React Aria, Tailwind CSS, and lucide-react icons.
+                    This is an open source project built by Brad Stalcup with Next.js, HeroUI,
+                    React Aria, Tailwind CSS, and lucide-react icons.
                   </p>
-                  <Link
-                    href="https://github.com/bradleystalcup-rgb/Asynchronous-Interview-Helper"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex font-semibold text-[var(--accent-strong)] underline-offset-4 hover:underline"
-                  >
-                    See this in GitHub
-                  </Link>
+                  <div className="mt-3 flex flex-wrap gap-4">
+                    <Link
+                      href="https://github.com/bradleystalcup-rgb/Asynchronous-Interview-Helper"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex font-semibold text-[var(--accent-strong)] underline-offset-4 hover:underline"
+                    >
+                      See this in GitHub
+                    </Link>
+                    <Link
+                      href="https://bradstalcup.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex font-semibold text-[var(--accent-strong)] underline-offset-4 hover:underline"
+                    >
+                      BradStalcup.com
+                    </Link>
+                  </div>
                 </div>
               </CardContent>
-            </Card>
             ) : null}
+            </Card>
           </div>
         </div>
       </div>
@@ -1267,6 +1337,47 @@ function TeleprompterPreview({
   );
 }
 
+function SwatchTooltipLabel({ label }: { label: string }) {
+  return (
+    <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-medium bg-[var(--foreground)] px-2.5 py-1 text-xs font-semibold text-white opacity-0 shadow-xl transition group-hover:opacity-100 group-focus-visible:opacity-100">
+      {label}
+    </span>
+  );
+}
+
+function CustomSwatchCheck() {
+  return (
+    <span aria-hidden="true" className="custom-swatch-check">
+      <svg fill="none" role="presentation" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 12 12">
+        <polyline points="2.5 6 5 8.5 9.5 3" />
+      </svg>
+    </span>
+  );
+}
+
+function TimerDurationRadio({
+  value,
+  title,
+  children,
+}: {
+  value: DurationMode;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <Radio
+      value={value}
+      className="timer-duration-radio flex cursor-pointer items-start gap-3 rounded-medium border border-[var(--line)] bg-white/75 p-3 transition data-[selected=true]:border-[var(--accent)] data-[selected=true]:bg-[var(--accent-soft)]"
+    >
+      <Radio.Control className="timer-duration-radio__control" />
+      <Radio.Content>
+        <p className="text-sm font-semibold text-[var(--foreground)]">{title}</p>
+        <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{children}</p>
+      </Radio.Content>
+    </Radio>
+  );
+}
+
 function ColorSpaceSelect({
   colorSpace,
   onChange,
@@ -1325,44 +1436,35 @@ function ColorSliderControls({ colorSpace }: { colorSpace: ColorSpace }) {
 function SettingChoice({
   label,
   helpText,
+  isDisabled = false,
   options,
   value,
   onChange,
 }: {
   label: string;
   helpText?: string;
+  isDisabled?: boolean;
   options: { label: string; value: string }[];
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
-    <div>
+    <div className={isDisabled ? "opacity-45" : ""}>
       <div className="mb-2 flex items-center gap-2">
         <p className="text-sm font-semibold text-[var(--foreground)]">{label}</p>
-        {helpText ? (
-          <Tooltip>
-            <Tooltip.Trigger>
-              <Button
-                type="button"
-                variant="outline"
-                className="grid h-6 w-6 place-items-center rounded-full border-[var(--line)] bg-white/80 p-0 text-[var(--accent-strong)]"
-                aria-label={`${label} help`}
-              >
-                <HelpCircle aria-hidden="true" className="h-3.5 w-3.5" />
-              </Button>
-            </Tooltip.Trigger>
-            <Tooltip.Content className="max-w-xs rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs leading-5 text-white shadow-xl">
-              {helpText}
-            </Tooltip.Content>
-          </Tooltip>
-        ) : null}
+        {helpText ? <InlineHelp text={helpText} label={label} /> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <Button
             key={option.value}
             type="button"
-            onClick={() => onChange(option.value)}
+            isDisabled={isDisabled}
+            onClick={() => {
+              if (!isDisabled) {
+                onChange(option.value);
+              }
+            }}
             variant={value === option.value ? "primary" : "outline"}
             className={`inline-flex items-center gap-2 rounded-medium border px-3 py-2 text-sm font-semibold ${
               value === option.value
@@ -1376,5 +1478,20 @@ function SettingChoice({
         ))}
       </div>
     </div>
+  );
+}
+
+function InlineHelp({ text, label }: { text: string; label: string }) {
+  return (
+    <span
+      className="group/help relative inline-grid h-5 w-5 place-items-center text-[var(--accent-strong)] outline-none"
+      tabIndex={0}
+      aria-label={`${label}: ${text}`}
+    >
+      <HelpCircle aria-hidden="true" className="h-4 w-4" />
+      <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-20 w-64 -translate-x-1/2 rounded-medium bg-[var(--foreground)] px-3 py-2 text-xs font-medium leading-5 text-white opacity-0 shadow-xl transition group-hover/help:opacity-100 group-focus-visible/help:opacity-100">
+        {text}
+      </span>
+    </span>
   );
 }

@@ -27,3 +27,7 @@ Open [http://localhost:3003](http://localhost:3003).
 npm run lint
 npm run build
 ```
+
+## TODO
+
+- Evaluate `@mediapipe/tasks-vision` for non-CSS camera effects, starting with background blur or replacement via image segmentation. Keep face landmark enhancements as a later option if the added runtime cost is acceptable.
